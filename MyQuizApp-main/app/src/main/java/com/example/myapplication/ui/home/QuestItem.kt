@@ -1,12 +1,9 @@
 package com.example.myapplication.ui.home
 
 data class QuestItem(
-    val title: String,
-    val current: Int, // 현재 달성 수치 (예: 10분, 5문제)
-    val goal: Int,    // 목표 수치 (예: 30분, 20문제)
-    val unit: String  // 단위 (분, 개)
-) {
-    // 달성 여부 확인 (현재 >= 목표)
-    val isAchieved: Boolean
-        get() = current >= goal
-}
+    val title: String,       // 퀘스트 제목 (예: "일일 학습 30분")
+    val current: Int,        // 현재 진행도 (예: 15)
+    val goal: Int,           // 목표치 (예: 30)
+    val unit: String,        // 단위 (예: "분", "개")
+    val isCompleted: Boolean // 완료 여부
+)

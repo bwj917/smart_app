@@ -28,6 +28,17 @@ class StatsFragment : Fragment() {
 
     private lateinit var chart: BarChart
     private lateinit var tvTitle: TextView
+
+    private lateinit var tvTodaySolved: TextView
+    private lateinit var tvTodayTime: TextView
+
+    private lateinit var tvTotalSolved: TextView
+    private lateinit var tvStudyTime: TextView
+    private lateinit var tvBestDay: TextView
+
+    private lateinit var tvHeaderTotalSolved: TextView
+    private lateinit var tvHeaderTotalTime: TextView
+
     private var currentMode = "weekly"
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
@@ -36,8 +47,20 @@ class StatsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        tvTitle = view.findViewById(R.id.tvTitle)
+
         chart = view.findViewById(R.id.mainChart)
+        tvTitle = view.findViewById(R.id.tvTitle)
+
+        tvTodaySolved = view.findViewById(R.id.tvTodaySolved)
+        tvTodayTime = view.findViewById(R.id.tvTodayTime)
+
+        tvTotalSolved = view.findViewById(R.id.tvTotalSolved)
+        tvStudyTime = view.findViewById(R.id.tvStudyTime)
+        tvBestDay = view.findViewById(R.id.tvBestDay)
+
+        tvHeaderTotalSolved = view.findViewById(R.id.tvHeaderTotalSolved)
+        tvHeaderTotalTime = view.findViewById(R.id.tvHeaderTotalTime)
+
         val toggleGroup = view.findViewById<MaterialButtonToggleGroup>(R.id.toggleGroup)
 
         toggleGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
@@ -62,13 +85,6 @@ class StatsFragment : Fragment() {
         }
     }
 
-    override fun onHiddenChanged(hidden: Boolean) {
-        super.onHiddenChanged(hidden)
-        if (!hidden) {
-            view?.let { startRefresh(it) }
-        }
-    }
-
     private fun startRefresh(view: View) {
         val userId = AuthManager.getUserId(requireContext()) ?: return
 
@@ -84,40 +100,44 @@ class StatsFragment : Fragment() {
 
         lifecycleScope.launch {
             try {
-                delay(500) // 반응 속도 개선 (0.5초)
+                delay(300)
 
-                // 1. 오늘의 전체 통계 가져오기 (상단 카드)
-                val todayStatsResponse = RetrofitClient.problemApiService.getTodayTotalStats(userId)
-                if (todayStatsResponse.isSuccessful) {
-                    val body = todayStatsResponse.body()
-                    val todayCount = (body?.get("count") as? Number)?.toInt() ?: 0
-                    val todayTime = (body?.get("studyTime") as? Number)?.toLong() ?: 0L
+                val service = RetrofitClient.problemApiService
 
-                    view.findViewById<TextView>(R.id.tvTodaySolved).text = "${todayCount}문제"
-                    view.findViewById<TextView>(R.id.tvTodayTime).text = formatSecondsToTime(todayTime)
+                // 🔥 [핵심 수정] "all"을 보내서 전체 합계를 요청합니다.
+                val todayResponse = service.getTodayStats(userId, "all")
+
+                if (todayResponse.isSuccessful) {
+                    val body = todayResponse.body()
+                    val todayCount = (body?.get("solvedCount") as? Number)?.toInt() ?: 0
+                    val todaySeconds = (body?.get("studyTime") as? Number)?.toLong() ?: 0L
+
+                    tvTodaySolved.text = "${todayCount}문제"
+                    tvTodayTime.text = formatSecondsToTime(todaySeconds)
                 }
 
-                // 2. 전체 누적 통계 가져오기 (하단 카드)
-                val allStatsResponse = RetrofitClient.problemApiService.getAllStats(userId)
+                // 전체 누적 기록
+                val allStatsResponse = service.getAllStats(userId)
                 if (allStatsResponse.isSuccessful) {
                     val body = allStatsResponse.body()
                     val rawCounts = body?.get("dailyCounts") as? List<*>
-                    val counts = rawCounts?.filterIsInstance<Number>()?.map { it.toInt() } ?: emptyList()
-                    val totalSolved = counts.sum()
-                    val totalSeconds = (body?.get("totalTimeSeconds") as? Number)?.toLong() ?: 0L
+                    val counts = rawCounts?.map { (it as? Number)?.toInt() ?: 0 } ?: emptyList()
 
-                    view.findViewById<TextView>(R.id.tvHeaderTotalSolved).text = "${totalSolved}문제"
-                    view.findViewById<TextView>(R.id.tvHeaderTotalTime).text = formatSecondsToTime(totalSeconds)
+                    val totalAllSolved = counts.sum()
+                    val totalAllSeconds = (body?.get("totalTimeSeconds") as? Number)?.toLong() ?: 0L
+
+                    tvHeaderTotalSolved.text = "${totalAllSolved}문제"
+                    tvHeaderTotalTime.text = formatSecondsToTime(totalAllSeconds)
 
                     if (mode == "all") {
-                        updateUI(view, counts, mode, totalSeconds)
+                        updateUI(counts, mode, totalAllSeconds)
                     } else {
                         fetchStats(view, mode)
                     }
                 }
 
             } catch (e: Exception) {
-                Log.e("Stats", "Load/Sync Error: ${e.message}", e)
+                Log.e("Stats", "Refresh Error: ${e.message}")
             }
         }
     }
@@ -140,12 +160,12 @@ class StatsFragment : Fragment() {
                 if (response.isSuccessful) {
                     val body = response.body()
                     val rawCounts = body?.get("dailyCounts") as? List<*>
-                    val counts = rawCounts?.filterIsInstance<Number>()?.map { it.toInt() } ?: emptyList()
+                    val counts = rawCounts?.map { (it as? Number)?.toInt() ?: 0 } ?: emptyList()
 
                     val timeKey = if (mode == "all") "totalTimeSeconds" else "periodTimeSeconds"
                     val periodSeconds = (body?.get(timeKey) as? Number)?.toLong() ?: 0L
 
-                    updateUI(view, counts, mode, periodSeconds)
+                    updateUI(counts, mode, periodSeconds)
                 }
             } catch (e: Exception) {
                 Log.e("Stats", "Fetch Error", e)
@@ -153,29 +173,25 @@ class StatsFragment : Fragment() {
         }
     }
 
-    private fun updateUI(view: View, counts: List<Int>, mode: String, periodSeconds: Long) {
+    private fun updateUI(counts: List<Int>, mode: String, periodSeconds: Long) {
         val totalSolved = counts.sum()
         val best = counts.maxOrNull() ?: 0
         val timeString = formatSecondsToTime(periodSeconds)
 
-        view.findViewById<TextView>(R.id.tvTotalSolved).text = "${totalSolved}문제"
-        view.findViewById<TextView>(R.id.tvStudyTime).text = timeString
+        tvTotalSolved.text = "${totalSolved}문제"
+        tvStudyTime.text = timeString
 
-        if (mode == "yearly") {
-            view.findViewById<TextView>(R.id.tvBestDay).text = "${best}문제"
-        } else if (mode == "all") {
-            view.findViewById<TextView>(R.id.tvBestDay).text = "${best}문제"
-        } else {
-            view.findViewById<TextView>(R.id.tvBestDay).text = "${best}문제"
+        val bestText = when (mode) {
+            "yearly" -> "${best}"
+            "all" -> "${best}"
+            else -> "${best}"
         }
+        tvBestDay.text = "${bestText}문제"
 
-        tvTitle.text = when(mode) {
-            "weekly" -> "주간 상세 요약"
-            "monthly" -> "월간 상세 요약"
-            "yearly" -> "연간 상세 요약"
-            else -> "전체 상세 요약"
-        }
+        setupChart(counts, mode)
+    }
 
+    private fun setupChart(counts: List<Int>, mode: String) {
         val entries = ArrayList<BarEntry>()
         val labels = ArrayList<String>()
         val tooltipLabels = ArrayList<String>()
@@ -189,8 +205,7 @@ class StatsFragment : Fragment() {
                 labels.add("$year")
                 tooltipLabels.add("${year}년")
             }
-        }
-        else if (mode == "weekly") {
+        } else if (mode == "weekly") {
             val calendar = Calendar.getInstance()
             calendar.add(Calendar.DAY_OF_YEAR, -6)
             val xFmt = SimpleDateFormat("MM/dd", Locale.getDefault())
@@ -201,16 +216,14 @@ class StatsFragment : Fragment() {
                 tooltipLabels.add(toolFmt.format(calendar.time))
                 calendar.add(Calendar.DAY_OF_YEAR, 1)
             }
-        }
-        else if (mode == "monthly") {
+        } else if (mode == "monthly") {
             val currentMonth = Calendar.getInstance().get(Calendar.MONTH) + 1
             counts.forEachIndexed { i, v ->
                 entries.add(BarEntry(i.toFloat(), v.toFloat()))
                 labels.add("${i + 1}")
                 tooltipLabels.add("${currentMonth}월 ${i + 1}일")
             }
-        }
-        else {
+        } else {
             counts.forEachIndexed { i, v ->
                 entries.add(BarEntry(i.toFloat(), v.toFloat()))
                 labels.add("${i + 1}월")
@@ -226,11 +239,9 @@ class StatsFragment : Fragment() {
         barData.barWidth = 0.5f
         chart.data = barData
 
-        if (tooltipLabels.isNotEmpty()) {
-            val mv = CustomMarkerView(requireContext(), R.layout.view_custom_marker, tooltipLabels)
-            mv.chartView = chart
-            chart.marker = mv
-        }
+        val marker = CustomMarkerView(requireContext(), R.layout.view_custom_marker, tooltipLabels)
+        marker.chartView = chart
+        chart.marker = marker
 
         chart.apply {
             description.isEnabled = false
@@ -243,13 +254,13 @@ class StatsFragment : Fragment() {
                 setDrawAxisLine(false)
                 setDrawGridLines(true)
                 gridColor = Color.parseColor("#F0F0F0")
+                axisMinimum = 0f
             }
             axisRight.isEnabled = false
             xAxis.apply {
                 position = XAxis.XAxisPosition.BOTTOM
                 textColor = Color.DKGRAY
-                setDrawGridLines(true)
-                gridColor = Color.parseColor("#F0F0F0")
+                setDrawGridLines(false)
                 granularity = 1f
                 valueFormatter = com.github.mikephil.charting.formatter.IndexAxisValueFormatter(labels)
                 if (mode == "monthly") setLabelCount(6, false)
@@ -261,7 +272,7 @@ class StatsFragment : Fragment() {
     }
 
     private fun formatSecondsToTime(totalSeconds: Long): String {
-        if (totalSeconds == 0L) return "0분"
+        if (totalSeconds <= 0L) return "0분"
         val hours = totalSeconds / 3600
         val minutes = (totalSeconds % 3600) / 60
         return if (hours > 0) "${hours}시간 ${minutes}분" else "${minutes}분"

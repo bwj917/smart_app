@@ -19,7 +19,6 @@ import com.example.myapplication.ui.course.CourseSelectActivity
 import com.example.myapplication.ui.quiz.CourseIds
 import com.example.myapplication.ui.quiz.QuizActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class HomeFragment : Fragment() {
@@ -28,17 +27,13 @@ class HomeFragment : Fragment() {
     private val binding get() = _binding!!
 
     private var courses = mutableListOf(
-        CourseItem("정보처리기능사", 0)
-    )
-
-    // 초기 퀘스트 데이터 (0/0 상태)
-    private var quests = mutableListOf(
-        QuestItem("일일 학습 30분", 0, 30, "분"),
-        QuestItem("문제 20개 풀기", 0, 20, "개")
+        CourseItem("정보처리기능사", 0, 0, 60)
     )
 
     private lateinit var courseAdapter: CourseAdapter
-    private lateinit var questAdapter: QuestAdapter // 🔥 퀘스트 어댑터 변수 추가
+
+    // 🔥 [추가] 퀘스트 어댑터를 멤버 변수로 선언 (나중에 갱신하기 위해)
+    private lateinit var questAdapter: QuestAdapter
 
     private val startCourseSelect = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
@@ -47,10 +42,8 @@ class HomeFragment : Fragment() {
             if (selectedName != null) {
                 val oldItem = courses[0]
                 courses[0] = oldItem.copy(title = selectedName)
-
                 courseAdapter.updateItems(courses.toList())
                 Toast.makeText(requireContext(), "$selectedName(으)로 변경!", Toast.LENGTH_SHORT).show()
-
                 updateDailyProgress()
             }
         }
@@ -62,15 +55,21 @@ class HomeFragment : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
+
+        // 초기 퀘스트 목록 (0/0 상태)
+        val initialQuests = listOf(
+            QuestItem("일일 학습 30분", 0, 30, "분", false),
+            QuestItem("문제 20개 풀기", 0, 20, "개", false)
+        )
 
         binding.rvCourses.layoutManager = LinearLayoutManager(requireContext())
         binding.rvQuests.layoutManager = LinearLayoutManager(requireContext())
 
-        // 코스 어댑터 설정
         courseAdapter = CourseAdapter(
             items = courses,
-            onStartClick = { item -> showQuizPreviewDialog() },
+            onStartClick = { item: CourseItem ->
+                showQuizPreviewDialog()
+            },
             onCardClick = { },
             onReviewClick = { },
             onChangeClick = {
@@ -79,18 +78,12 @@ class HomeFragment : Fragment() {
             }
         )
 
-        // 퀘스트 어댑터 설정
-        questAdapter = QuestAdapter(quests)
-
+        // 🔥 [수정] 퀘스트 어댑터 초기화 및 연결
+        questAdapter = QuestAdapter(initialQuests)
         binding.rvCourses.adapter = courseAdapter
         binding.rvQuests.adapter = questAdapter
-    }
 
-    override fun onHiddenChanged(hidden: Boolean) {
-        super.onHiddenChanged(hidden)
-        if (!hidden) {
-            updateDailyProgress()
-        }
+        updateDailyProgress()
     }
 
     private fun showQuizPreviewDialog() {
@@ -167,52 +160,58 @@ class HomeFragment : Fragment() {
 
         lifecycleScope.launch {
             try {
-                delay(500)
-
                 // 1. 코스 진행률 갱신 (기존 로직)
                 val newCourses = courses.toMutableList()
                 for (i in newCourses.indices) {
                     val course = newCourses[i]
-                    val response = RetrofitClient.problemApiService.getTodaySolvedCount(currentUserId, course.title)
+                    val response = RetrofitClient.problemApiService.getTodayStats(currentUserId, course.title)
 
                     if (response.isSuccessful) {
-                        val count = response.body()?.get("count") ?: 0
+                        val body = response.body()
+                        val count = (body?.get("solvedCount") as? Number)?.toInt() ?: 0
+
                         val goal = 60
                         val percent = if (goal > 0) (count.toDouble() / goal * 100).toInt() else 0
                         val safePercent = percent.coerceIn(0, 100)
 
-                        newCourses[i] = course.copy(progressPercent = safePercent, solvedCount = count)
+                        newCourses[i] = course.copy(
+                            progressPercent = safePercent,
+                            solvedCount = count,
+                            goal = goal
+                        )
                     }
                 }
                 courses = newCourses
+                courseAdapter.updateItems(courses.toList())
 
-                // 2. 🔥 [추가] 일일 퀘스트(전구) 데이터 갱신
-                // 서버에서 '오늘 전체 통계'를 가져옵니다.
-                val statsResponse = RetrofitClient.problemApiService.getTodayTotalStats(currentUserId)
-
-                if (statsResponse.isSuccessful) {
-                    val body = statsResponse.body()
-                    // 문제 수
-                    val totalCount = (body?.get("count") as? Number)?.toInt() ?: 0
-                    // 공부 시간 (초 단위) -> 분 단위로 변환
+                // 2. 🔥 [추가] 일일 퀘스트(전체 학습량) 갱신 로직
+                // 과목 상관없이 "오늘 전체" 데이터를 가져옵니다.
+                val totalResponse = RetrofitClient.problemApiService.getTodayStats(currentUserId, "all")
+                if (totalResponse.isSuccessful) {
+                    val body = totalResponse.body()
+                    val totalCount = (body?.get("solvedCount") as? Number)?.toInt() ?: 0
                     val totalTimeSec = (body?.get("studyTime") as? Number)?.toLong() ?: 0L
                     val totalTimeMin = (totalTimeSec / 60).toInt()
 
-                    // 퀘스트 리스트 업데이트
-                    val newQuests = mutableListOf(
-                        QuestItem("일일 학습 30분", totalTimeMin, 30, "분"),
-                        QuestItem("문제 20개 풀기", totalCount, 20, "개")
+                    // 퀘스트 목록 새로 생성
+                    val newQuests = listOf(
+                        QuestItem(
+                            title = "일일 학습 30분",
+                            current = totalTimeMin,
+                            goal = 30,
+                            unit = "분",
+                            isCompleted = totalTimeMin >= 30 // 30분 이상이면 달성!
+                        ),
+                        QuestItem(
+                            title = "문제 20개 풀기",
+                            current = totalCount,
+                            goal = 20,
+                            unit = "개",
+                            isCompleted = totalCount >= 20 // 20개 이상이면 달성!
+                        )
                     )
-                    quests = newQuests
-                }
-
-                // 3. UI 반영
-                view?.post {
-                    if (_binding != null) {
-                        courseAdapter.updateItems(courses.toList())
-                        questAdapter.updateItems(quests.toList()) // 퀘스트 어댑터 갱신
-                        Log.d("DEBUG_HOME", "UI 강제 업데이트 실행됨")
-                    }
+                    // 어댑터에 갱신 알림
+                    questAdapter.updateItems(newQuests)
                 }
 
             } catch (e: Exception) {
@@ -223,9 +222,7 @@ class HomeFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        view?.let {
-            updateDailyProgress()
-        }
+        view?.let { updateDailyProgress() }
     }
 
     override fun onDestroyView() {

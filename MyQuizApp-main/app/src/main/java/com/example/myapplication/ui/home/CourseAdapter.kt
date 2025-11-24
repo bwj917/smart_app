@@ -41,8 +41,8 @@ class CourseAdapter(
         holder.tvPercent.text = "${item.progressPercent}%"
         holder.circleProgress.setProgressCompat(item.progressPercent, true)
 
-        // 🔥 [핵심 수정] 퍼센트 계산이 아니라, 실제 푼 문제 수(solvedCount)를 표시
-        holder.tvSub.text = "오늘: ${item.solvedCount} / 60 개"
+        // 🔥 [핵심 수정] 퍼센트 역계산 대신 실제 개수(solvedCount)를 표시
+        holder.tvSub.text = "오늘: ${item.solvedCount} / ${item.goal} 개"
 
         holder.btnStart.setOnClickListener {
             Log.d("DEBUG_APP", "어댑터: 학습하기 버튼 클릭됨! (${item.title})")

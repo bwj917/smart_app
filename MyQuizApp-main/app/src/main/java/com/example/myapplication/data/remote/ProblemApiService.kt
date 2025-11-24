@@ -29,20 +29,16 @@ interface ProblemApiService {
         @Query("userId") userId: Long
     ): Response<HintResponse>
 
-    // 🔥 [신규] 학습 시간 저장 API
-    @POST("api/stats/study_time")
-    suspend fun saveStudyTime(@Body body: Map<String, Any>): Response<Void>
 
-    @GET("api/stats/today_total")
-    suspend fun getTodayTotalStats(
-        @Query("userId") userId: Long
-    ): Response<Map<String, Any>>
+    // ------------- 통계 API -------------
 
+    // 🔥 [수정] 이름 변경: getTodayStats / 반환 타입: Map<String, Any>
+    // Any를 쓰기 위해선 JvmSuppressWildcards가 필요할 수도 있지만, 보통 Map<String, Any>는 Retrofit에서 잘 처리됩니다.
     @GET("api/stats/today")
-    suspend fun getTodaySolvedCount(
+    suspend fun getTodayStats(
         @Query("userId") userId: Long,
         @Query("courseId") courseId: String
-    ): Response<Map<String, Int>>
+    ): Response<Map<String, Any>>
 
     @GET("api/stats/weekly")
     suspend fun getWeeklyStats(@Query("userId") userId: Long): Response<Map<String, Any>>
