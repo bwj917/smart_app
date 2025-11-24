@@ -64,4 +64,22 @@ public class MemberService {
                 passwordEncoder.matches(password, member.getPw())
         );
     }
+
+    public int addPoints(Long userId, int amount) {
+        Optional<Member> memberOptional = memberRepository.findById(userId);
+        if (memberOptional.isPresent()) {
+            Member member = memberOptional.get();
+            int currentPoints = member.getPoints();
+            int updatedPoints = currentPoints + amount;
+
+            memberRepository.updatePoints(userId, updatedPoints); // DB 업데이트
+            return updatedPoints;
+        }
+        return -1; // 회원 없음 에러
+    }
+
+    // 🔥 [추가] ID(Long)로 회원 정보 가져오기 (포인트 조회용)
+    public Optional<Member> findOneById(Long userId) {
+        return memberRepository.findById(userId);
+    }
 }

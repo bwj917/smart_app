@@ -15,4 +15,5 @@ public class Member {
     private String email;
     private String phone;
     private LocalDateTime joinDate;
+    private int points;
 }

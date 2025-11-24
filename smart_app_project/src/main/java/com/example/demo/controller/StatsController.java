@@ -1,12 +1,15 @@
 package com.example.demo.controller;
 
+import com.example.demo.domain.Member;
 import com.example.demo.service.KotlinProblemService;
+import com.example.demo.service.MemberService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/stats")
@@ -14,8 +17,11 @@ public class StatsController {
 
     private final KotlinProblemService kotlinProblemService;
 
-    public StatsController(KotlinProblemService kotlinProblemService) {
+    private final MemberService memberService;
+
+    public StatsController(KotlinProblemService kotlinProblemService, MemberService memberService) {
         this.kotlinProblemService = kotlinProblemService;
+        this.memberService = memberService;
     }
 
     @GetMapping("/today")
@@ -34,9 +40,16 @@ public class StatsController {
 
         Long studyTime = kotlinProblemService.getTodayStudyTime(userId);
 
+        int currentPoints = 0;
+        Optional<Member> member = memberService.findOneById(userId);
+        if (member.isPresent()) {
+            currentPoints = member.get().getPoints();
+        }
+
         Map<String, Object> response = new HashMap<>();
         response.put("solvedCount", solvedCount);
         response.put("studyTime", studyTime);
+        response.put("currentPoints", currentPoints); // 🔥 안드로이드로 전송
         return ResponseEntity.ok(response);
     }
 
@@ -81,6 +94,20 @@ public class StatsController {
         Map<String, Object> response = new HashMap<>();
         response.put("dailyCounts", data);
         response.put("periodTimeSeconds", time);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/reward")
+    public ResponseEntity<Map<String, Object>> rewardPoints(
+            @RequestParam Long userId,
+            @RequestParam int amount) { // amount = 100 등
+
+        int newTotal = memberService.addPoints(userId, amount);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", newTotal != -1);
+        response.put("newTotalPoints", newTotal);
+
         return ResponseEntity.ok(response);
     }
 }
