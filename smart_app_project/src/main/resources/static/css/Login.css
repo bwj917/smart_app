@@ -1,0 +1,118 @@
+/* 페이지 전체 스타일 */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f9;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+.error-message {
+    color: #D8000C; /* 빨간색 텍스트 */
+    background-color: #FFD2D2; /* 연한 빨간색 배경 */
+    border: 1px solid #D8000C;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 20px;
+    text-align: center;
+    font-size: 14px;
+}
+/* 로그인 폼 컨테이너 스타일 */
+.login-container {
+    background-color: #ffffff;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 400px;
+}
+
+/* 폼 제목 스타일 */
+.login-container h1 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 25px;
+}
+
+/* 입력 필드 그룹 스타일 */
+.form-group {
+    margin-bottom: 20px;
+}
+
+/* 라벨 스타일 */
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #555;
+}
+
+/* 입력창 스타일 */
+.form-group input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box; /* 패딩과 테두리가 너비에 포함되도록 설정 */
+}
+
+/* 체크박스 그룹 스타일 */
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.checkbox-group input {
+    margin-right: 10px;
+}
+
+.checkbox-group label {
+    margin: 0;
+    font-weight: normal;
+    color: #666;
+}
+
+/* 로그인 버튼 스타일 */
+.btn-login {
+    width: 100%;
+    padding: 12px;
+    background-color: #007bff;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+/* 버튼에 마우스를 올렸을 때 스타일 */
+.btn-login:hover {
+    background-color: #0056b3;
+}
+
+/* --- 추가된 스타일 --- */
+/* 추가 링크 영역 스타일 */
+.extra-links {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.extra-links a {
+    text-decoration: none;
+    color: #666;
+    font-size: 14px;
+    margin: 0 5px; /* 링크 사이의 좌우 여백 */
+}
+
+.extra-links a:hover {
+    text-decoration: underline;
+}
+
+.extra-links span {
+    color: #ccc;
+    margin: 0 5px;
+}
+/* --- /추가된 스타일 --- */

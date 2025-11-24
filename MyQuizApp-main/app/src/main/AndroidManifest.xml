@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="true"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MyQuizApp"
+        android:usesCleartextTraffic="true"
+        android:enableOnBackInvokedCallback="true"
+        tools:targetApi="31">
+
+        <!-- 🔥 앱 최초 실행 시 보여줄 화면 = LoginActivity -->
+        <activity
+            android:name=".auth.LoginActivity"
+            android:exported="true">
+
+            <!-- LAUNCHER는 무조건 LoginActivity 에 들어가야 함 -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- 회원가입 화면 -->
+        <activity
+            android:name=".auth.SignUpActivity"
+            android:exported="true" />
+
+        <!-- 홈 화면(MainActivity) -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true" />
+
+        <!-- 퀴즈 화면 -->
+        <activity
+            android:name=".ui.quiz.QuizActivity"
+            android:exported="false" />
+        <!-- 이번 달 학습량 화면 -->
+        <activity
+            android:name=".ui.stats.StatsFragment"
+            android:exported="false" />
+        <activity
+            android:name=".ui.wrongnote.WrongNoteActivity"
+            android:exported="false" />
+        <activity
+            android:name="com.example.myapplication.ui.wrongnote.WrongNoteDetailActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.course.CourseSelectActivity"
+            android:exported="false" />
+    </application>
+
+</manifest>

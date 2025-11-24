@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<form action="/submit" method="post">
+
+    <script th:inline="javascript">
+        var problemData = [[${problem}]]
+        console.log(problemData)
+    </script>
+
+    <br>
+    <p><span th:text="${currentId}"></span>번 문제</p>
+
+    (<span th:text="${timeAgo}"></span>)
+
+    <p th:text="${problem.question}">질문 내용</p>
+
+    <input type="hidden" name="problemId" th:value="${problem.problemId}">
+    <input type="hidden" name="currentId" th:value="${currentId}" />
+    <input type="hidden" name="checkCount" th:value="${checkCount}" />
+    <input type="hidden" id="correctAnswer" th:value="${problem.answer}">
+
+
+    <span th:if="${checkHint}" id="hintDisplay" th:text="${hintAnswerLen}"></span> <!-- 힌트-->
+    <br>
+    <input th:if="${!isCorrect}" name="answer" type="text">
+
+<!--    <input name="submit" type="submit" value="확인">-->
+
+    <input th:if="${!isCorrect}" id="submitFalse" name="answer" type="submit" value="확인">
+    <input th:if="${isCorrect}" id="submitTrue" name="submit" type="submit" value="제출">
+
+</form>
+
+<form action="/submit" method="post">
+    <input type="hidden" name="problemId" th:value="${problem.problemId}">
+    <input type="hidden" name="currentId" th:value="${currentId}" />
+    <input type="hidden" name="checkCount" th:value="${checkCount}" />
+    <input type="hidden" name="answer"  value="checkHint">
+
+    <button th:if="${!isCorrect}" >힌트보기</button>
+</form>
+</body>
+</html>

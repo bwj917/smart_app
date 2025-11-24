@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 배경 트랙(회색 링) -->
+    <item>
+        <shape android:shape="ring"
+            android:thickness="8dp"
+            android:useLevel="false"
+            android:innerRadiusRatio="3">
+            <size android:width="56dp" android:height="56dp" />
+            <solid android:color="#E0E0E0"/>
+        </shape>
+    </item>
+
+    <!-- 진행 트랙(메인 컬러 링) -->
+    <item>
+        <scale
+            android:scaleWidth="100%"
+            android:scaleHeight="100%"
+            android:useLevel="true">
+            <shape android:shape="ring"
+                android:thickness="8dp"
+                android:useLevel="true"
+                android:innerRadiusRatio="3">
+                <size android:width="56dp" android:height="56dp" />
+                <solid android:color="#6750A4"/>
+            </shape>
+        </scale>
+    </item>
+</layer-list>

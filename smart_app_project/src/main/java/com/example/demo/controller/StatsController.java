@@ -1,0 +1,75 @@
+package com.example.demo.controller;
+
+import com.example.demo.service.KotlinProblemService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/stats")
+public class StatsController {
+
+    private final KotlinProblemService kotlinProblemService;
+
+    public StatsController(KotlinProblemService kotlinProblemService) {
+        this.kotlinProblemService = kotlinProblemService;
+    }
+
+    @GetMapping("/today") // 홈 화면용
+    public ResponseEntity<Map<String, Integer>> getTodayStats(@RequestParam Long userId, @RequestParam(defaultValue = "정보처리기능사") String courseId) {
+        int realCount = kotlinProblemService.getTodaySolvedCount(userId, courseId);
+        return ResponseEntity.ok(Map.of("count", realCount));
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<Map<String, Object>> getAllStats(@RequestParam Long userId) {
+        List<Integer> data = kotlinProblemService.getAllStudyData(userId);
+        Long totalSeconds = kotlinProblemService.getTotalStudyTime(userId); // 전체 누적
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("dailyCounts", data);
+        response.put("totalTimeSeconds", totalSeconds);
+        return ResponseEntity.ok(response);
+    }
+
+    // 🔥 [수정] 주간: 그래프 + 시간
+    @GetMapping("/weekly")
+    public ResponseEntity<Map<String, Object>> getWeeklyStats(@RequestParam Long userId) {
+        List<Integer> data = kotlinProblemService.getWeeklyStudyData(userId);
+        Long time = kotlinProblemService.getWeeklyTotalTime(userId); // 시간 추가
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("dailyCounts", data);
+        response.put("periodTimeSeconds", time); // Key 이름 주의!
+        return ResponseEntity.ok(response);
+    }
+
+    // 🔥 [수정] 월간: 그래프 + 시간
+    @GetMapping("/monthly")
+    public ResponseEntity<Map<String, Object>> getMonthlyStats(@RequestParam Long userId) {
+        List<Integer> data = kotlinProblemService.getMonthlyStudyData(userId);
+        Long time = kotlinProblemService.getMonthlyTotalTime(userId);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("dailyCounts", data);
+        response.put("periodTimeSeconds", time);
+        return ResponseEntity.ok(response);
+    }
+
+    // 🔥 [수정] 연간: 그래프 + 시간
+    @GetMapping("/yearly")
+    public ResponseEntity<Map<String, Object>> getYearlyStats(@RequestParam Long userId) {
+        List<Integer> data = kotlinProblemService.getYearlyStudyData(userId);
+        Long time = kotlinProblemService.getYearlyTotalTime(userId);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("dailyCounts", data);
+        response.put("periodTimeSeconds", time);
+        return ResponseEntity.ok(response);
+    }
+}
+
+

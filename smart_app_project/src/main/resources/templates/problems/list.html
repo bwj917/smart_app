@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>스프링 & 오라클 문제 목록</title>
+    <meta charset="UTF-8">
+</head>
+<body>
+<h1>저장된 문제 목록</h1>
+
+<table border="1">
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>질문 (Question)</th>
+        <th>답변 (Answer)</th>
+        <th>레벨 (Level)</th>
+        <th>다음 검토일</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="problem : ${problemList}">
+        <td th:text="${problem.problemId}">1</td>
+        <td th:text="${problem.question}">질문 내용</td>
+        <td th:text="${problem.answer}">답변 내용</td>
+        <td th:text="${problem.problemLevel}">1</td>
+        <td th:text="${problem.nextReviewTime}">2025-01-01</td>
+    </tr>
+    </tbody>
+</table>
+
+</body>
+</html>

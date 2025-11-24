@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="purple">#57419d</color>
+    <color name="purple_200">#333333</color>
+    <color name="purple_500">#6200EE</color>
+    <color name="purple_700">#3700B3</color>
+    <color name="teal_200">#03DAC5</color>
+    <color name="teal_700">#018786</color>
+    <color name="brand_primary">#57419d</color>
+    <color name="brand_light_bg">#F0ECFF</color>
+    <color name="text_primary">#333333</color>
+    <color name="quiz_hint_green">#8BC34A</color>
+    <style name="CustomTextInput" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        <item name="android:textColorHint">#46338C</item>
+        <item name="hintTextColor">#46338C</item>
+    </style>
+
+</resources>

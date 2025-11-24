@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:background="@android:color/white"
+    android:padding="24dp"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <!-- 로고 -->
+        <ImageView
+            android:id="@+id/ivLogo"
+            android:src="@drawable/quit"
+            android:layout_width="110dp"
+            android:layout_height="110dp"
+            android:layout_marginTop="20dp"
+            android:contentDescription="@string/app_name" />
+
+        <!-- 앱 제목 -->
+        <TextView
+            android:text="QUIT!"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="#46338C"
+            android:layout_marginTop="12dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+
+        <!-- 아이디 -->
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/CustomTextInput"
+            app:boxBackgroundColor="@android:color/white"
+            app:boxStrokeColor="#46338C"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etId"
+                android:hint="아이디"
+                android:textColor="#46338C"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- 비밀번호 -->
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/CustomTextInput"
+            app:boxBackgroundColor="@android:color/white"
+            app:boxStrokeColor="#46338C"
+            android:layout_marginTop="20dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etPassword"
+                android:hint="비밀번호"
+                android:textColor="#46338C"
+                android:inputType="textPassword"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- 로그인 유지 -->
+        <CheckBox
+            android:id="@+id/cbKeepLogin"
+            android:layout_marginTop="12dp"
+            android:text="로그인 유지"
+            android:textColor="#333333"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+        <!-- 로그인 버튼 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnLogin"
+            android:text="로그인"
+            android:textStyle="bold"
+            android:textColor="@android:color/white"
+            android:layout_marginTop="22dp"
+            app:cornerRadius="12dp"
+            app:backgroundTint="#57419D"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+
+        <!-- 데모 모드 -->
+
+
+        <!-- 기타 메뉴 -->
+        <LinearLayout
+            android:layout_marginTop="24dp"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/tvFindId"
+                android:text="아이디 찾기"
+                android:textColor="#57419D"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+
+            <TextView
+                android:text=" | "
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:id="@+id/tvFindPw"
+                android:text="비밀번호 찾기"
+                android:textColor="#57419D"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+
+            <TextView
+                android:text=" | "
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+
+            <TextView
+                android:id="@+id/tvGoSignUp"
+                android:text="회원가입"
+                android:textColor="#57419D"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>
