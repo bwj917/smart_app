@@ -160,65 +160,102 @@ class HomeFragment : Fragment() {
 
         lifecycleScope.launch {
             try {
-                // 1. 코스 진행률 갱신 (기존 로직)
+                // 1. 코스 진행률 갱신 (기존 로직 유지)
                 val newCourses = courses.toMutableList()
                 for (i in newCourses.indices) {
                     val course = newCourses[i]
                     val response = RetrofitClient.problemApiService.getTodayStats(currentUserId, course.title)
-
                     if (response.isSuccessful) {
                         val body = response.body()
                         val count = (body?.get("solvedCount") as? Number)?.toInt() ?: 0
 
+                        // 목표값 계산 등...
                         val goal = 60
                         val percent = if (goal > 0) (count.toDouble() / goal * 100).toInt() else 0
-                        val safePercent = percent.coerceIn(0, 100)
-
-                        newCourses[i] = course.copy(
-                            progressPercent = safePercent,
-                            solvedCount = count,
-                            goal = goal
-                        )
+                        newCourses[i] = course.copy(progressPercent = percent.coerceIn(0, 100), solvedCount = count)
                     }
                 }
                 courses = newCourses
                 courseAdapter.updateItems(courses.toList())
 
-                // 2. 🔥 [추가] 일일 퀘스트(전체 학습량) 갱신 로직
-                // 과목 상관없이 "오늘 전체" 데이터를 가져옵니다.
+
+                // 2. 🔥 일일 퀘스트 & 포인트 갱신 로직
                 val totalResponse = RetrofitClient.problemApiService.getTodayStats(currentUserId, "all")
+
                 if (totalResponse.isSuccessful) {
                     val body = totalResponse.body()
                     val totalCount = (body?.get("solvedCount") as? Number)?.toInt() ?: 0
                     val totalTimeSec = (body?.get("studyTime") as? Number)?.toLong() ?: 0L
                     val totalTimeMin = (totalTimeSec / 60).toInt()
 
-                    // 퀘스트 목록 새로 생성
+                    // (A) 서버에서 현재 포인트 가져와서 화면에 표시!
+                    // StatsController에서 "currentPoints"를 보내준다고 가정
+                    val serverPoints = (body?.get("currentPoints") as? Number)?.toInt() ?: 0
+                    binding.tvUserPoints.text = "포인트 $serverPoints" // 👈 화면 갱신!
+
+                    // 퀘스트 목표 설정
+                    val goalTime = 30
+                    val goalCount = 20
+
+                    val isTimeDone = totalTimeMin >= goalTime
+                    val isCountDone = totalCount >= goalCount
+
+                    // (B) 달성 시 포인트 지급 요청 (중복 지급 방지 포함)
+                    // 이미 받은 포인트는 로컬(SharedPref)에서 체크해서 서버 요청 안함
+                    checkAndReward(currentUserId, "QUEST_TIME", isTimeDone, 100, "일일 학습 완료! 100P")
+                    checkAndReward(currentUserId, "QUEST_COUNT", isCountDone, 100, "문제 풀이 완료! 100P")
+
+                    // (C) 리스트 갱신
                     val newQuests = listOf(
-                        QuestItem(
-                            title = "일일 학습 30분",
-                            current = totalTimeMin,
-                            goal = 30,
-                            unit = "분",
-                            isCompleted = totalTimeMin >= 30 // 30분 이상이면 달성!
-                        ),
-                        QuestItem(
-                            title = "문제 20개 풀기",
-                            current = totalCount,
-                            goal = 20,
-                            unit = "개",
-                            isCompleted = totalCount >= 20 // 20개 이상이면 달성!
-                        )
+                        QuestItem("일일 학습 30분", totalTimeMin, goalTime, "분", isTimeDone),
+                        QuestItem("문제 20개 풀기", totalCount, goalCount, "개", isCountDone)
                     )
-                    // 어댑터에 갱신 알림
                     questAdapter.updateItems(newQuests)
                 }
 
             } catch (e: Exception) {
-                Log.e("DEBUG_HOME", "에러 발생", e)
+                Log.e("DEBUG_HOME", "데이터 로드 실패", e)
             }
         }
     }
+
+    private suspend fun checkAndReward(userId: Long, questKey: String, isDone: Boolean, amount: Int, msg: String) {
+        if (!isDone) return // 달성 안 했으면 종료
+
+        // ❌ [삭제] 이 코드가 에러 원인입니다 (API 26+ 필요)
+        // val today = java.time.LocalDate.now().toString()
+
+        // ✅ [수정] API 24에서도 잘 작동하는 방식으로 변경 (SimpleDateFormat)
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+        val today = sdf.format(java.util.Date())
+
+        // ----------------------------------------------------
+        // 아래 코드는 그대로 유지
+        // ----------------------------------------------------
+        val prefKey = "${questKey}_$today"
+
+        val prefs = requireContext().getSharedPreferences("QuestPrefs", android.content.Context.MODE_PRIVATE)
+        val alreadyReceived = prefs.getBoolean(prefKey, false)
+
+        if (!alreadyReceived) {
+            // 서버에 포인트 지급 요청
+            val response = RetrofitClient.problemApiService.rewardPoints(userId, amount)
+            if (response.isSuccessful) {
+                // 1. 내부 저장소에 '받았음' 기록
+                prefs.edit().putBoolean(prefKey, true).apply()
+
+                // 2. 토스트 메시지
+                Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
+
+                // 3. 화면의 포인트 숫자 즉시 업데이트 (숫자만 추출해서 더하기)
+                val currentText = binding.tvUserPoints.text.toString().replace(Regex("[^0-9]"), "")
+                val currentVal = currentText.toIntOrNull() ?: 0
+                binding.tvUserPoints.text = "포인트 ${currentVal + amount}"
+            }
+        }
+    }
+
+
 
     override fun onResume() {
         super.onResume()

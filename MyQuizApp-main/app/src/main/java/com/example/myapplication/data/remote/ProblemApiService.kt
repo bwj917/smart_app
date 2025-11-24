@@ -51,4 +51,11 @@ interface ProblemApiService {
 
     @GET("api/stats/all")
     suspend fun getAllStats(@Query("userId") userId: Long): Response<Map<String, Any>>
+
+
+    @POST("api/stats/reward")
+    suspend fun rewardPoints(
+        @Query("userId") userId: Long,
+        @Query("amount") amount: Int
+    ): Response<Map<String, Any>>
 }

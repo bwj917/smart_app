@@ -121,6 +121,22 @@ class ProblemViewModel : ViewModel() {
         _hintContent.value = ""
     }
 
+    fun rewardPoints(userId: Long, amount: Int) {
+        viewModelScope.launch {
+            try {
+                // 백엔드 API 호출 (fire-and-forget 방식)
+                val response = RetrofitClient.problemApiService.rewardPoints(userId, amount)
+                if (response.isSuccessful) {
+                    Log.d("QUIZ_APP", "포인트 적립 성공: $amount")
+                } else {
+                    Log.e("QUIZ_APP", "포인트 적립 실패 code: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                Log.e("QUIZ_APP", "포인트 적립 네트워크 오류", e)
+            }
+        }
+    }
+
     fun requestHint(problemId: Long, userId: Long, hintCount: Int) {
         viewModelScope.launch {
             try {
