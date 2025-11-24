@@ -9,10 +9,10 @@ import java.util.List;
 
 public interface ProblemRepository extends JpaRepository<Problem, Long> {
 
-    // 해당 과목의 모든 문제 조회
-    List<Problem> findByCourseId(String courseId);
-
-    // 🔥 [필수 추가] 이미 푼 문제(solvedIds)를 제외한 나머지 문제들을 조회하는 쿼리
+    // 🔥 [수정] 특정 과목(courseId)이면서 + 이미 푼 문제(solvedIds)가 아닌 것 조회
     @Query("SELECT p FROM Problem p WHERE p.courseId = :courseId AND p.problemId NOT IN :solvedIds")
     List<Problem> findNewProblems(@Param("courseId") String courseId, @Param("solvedIds") List<Long> solvedIds);
+
+    // (푼 문제가 하나도 없을 때) 특정 과목의 전체 문제 조회
+    List<Problem> findByCourseId(String courseId);
 }

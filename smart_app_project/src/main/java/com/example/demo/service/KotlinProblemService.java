@@ -30,45 +30,40 @@ public class KotlinProblemService {
     @Autowired
     private SubmissionHistoryRepository historyRepository;
 
-    // 🔥 [신규] 문제 제출 없이 학습 시간만 저장하는 메서드
-    @Transactional
-    public void saveOnlyStudyTime(Long userId, int studyTime) {
-        if (studyTime <= 0) return; // 0초 이하는 저장 안 함
-
-        SubmissionHistory history = new SubmissionHistory();
-        history.setUserId(userId);
-        history.setProblemId(0L); // 0번은 '풀다가 만 문제'로 간주
-        history.setCorrect(false);
-        history.setSubmittedAt(new Date());
-        history.setStudyTime(studyTime);
-
-        historyRepository.save(history);
-    }
-
+    // ***************************************************************
+    // 1. 문제 제출 (checkAnswer) - 기록 저장 로직 포함
+    // ***************************************************************
     @Transactional
     public SubmissionResponse checkAnswer(String userAnswer, Long problemId, Long userId, int checkCount, int studyTime){
+
         Problem problem = findProblem(problemId);
+
+        // 정답 비교 (공백 제거)
         String cleanDbAnswer = problem.getAnswer().replaceAll("\\s+", "");
         String cleanUserAnswer = userAnswer.replaceAll("\\s+", "");
         boolean isCorrect = cleanDbAnswer.equals(cleanUserAnswer);
 
+        // 1. 기존 로직: 레벨 및 복습 시간 관리 (UserProblemStats)
         UserProblemStats stats = findOrCreateStats(userId, problem);
         updateStats(stats, isCorrect, checkCount);
 
+        // 2. 신규 로직: 이력 및 시간 저장 (SubmissionHistory)
         SubmissionHistory history = new SubmissionHistory(
                 userId,
                 problemId,
                 isCorrect,
-                new Date(),
-                studyTime
+                new Date(), // 현재 시간
+                studyTime   // 걸린 시간
         );
-        historyRepository.save(history);
+        System.out.println("dkddddd");
+        historyRepository.save(history); // DB에 저장
 
         return new SubmissionResponse(isCorrect, new ProblemResponseDto(problem, stats));
     }
 
-    // ... (나머지 기존 메서드들은 그대로 유지) ...
-
+    // ***************************************************************
+    // 2. 문제 리스트 가져오기 (tenProblem)
+    // ***************************************************************
     @Transactional
     public List<ProblemResponseDto> tenProblem(Long userId, String courseId) {
         List<ProblemResponseDto> tenProblem = new ArrayList<>();
@@ -87,6 +82,7 @@ public class KotlinProblemService {
         }
         Collections.shuffle(newProblem);
 
+        // 문제 섞기 로직 (기존 유지)
         if (beforeStats.size() + newProblem.size() < 10) {
             int fp = Math.min(10 - (beforeStats.size() + newProblem.size()), futureStats.size());
             for (UserProblemStats stat : beforeStats) tenProblem.add(new ProblemResponseDto(stat.getProblem(), stat));
@@ -115,6 +111,7 @@ public class KotlinProblemService {
         return tenProblem;
     }
 
+    // --- Helper Methods ---
     public Problem findProblem(Long problemId) {
         return problemRepository.findById(problemId)
                 .orElseThrow(() -> new NoSuchElementException("ID " + problemId + " 문제 없음"));
@@ -184,6 +181,11 @@ public class KotlinProblemService {
         return "";
     }
 
+    // ***************************************************************
+    // 3. 통계 관련 메서드들 (StatsController에서 호출)
+    // ***************************************************************
+
+    // 오늘 학습량 (홈 화면)
     public int getTodaySolvedCount(Long userId, String courseId) {
         LocalDateTime startLdt = LocalDateTime.now().with(java.time.LocalTime.MIN);
         LocalDateTime endLdt = LocalDateTime.now().with(java.time.LocalTime.MAX);
@@ -194,30 +196,11 @@ public class KotlinProblemService {
         );
     }
 
-    public int getTodayTotalSolvedCount(Long userId) {
-        LocalDateTime startLdt = LocalDateTime.now().with(java.time.LocalTime.MIN);
-        LocalDateTime endLdt = LocalDateTime.now().with(java.time.LocalTime.MAX);
-        return historyRepository.countCorrectByUserIdAndSubmittedAtBetween(
-                userId,
-                Date.from(startLdt.atZone(ZoneId.systemDefault()).toInstant()),
-                Date.from(endLdt.atZone(ZoneId.systemDefault()).toInstant())
-        );
-    }
-
-    public Long getTodayTotalStudyTime(Long userId) {
-        LocalDateTime startLdt = LocalDateTime.now().with(java.time.LocalTime.MIN);
-        LocalDateTime endLdt = LocalDateTime.now().with(java.time.LocalTime.MAX);
-        Long time = historyRepository.getSumStudyTimeBetween(
-                userId,
-                Date.from(startLdt.atZone(ZoneId.systemDefault()).toInstant()),
-                Date.from(endLdt.atZone(ZoneId.systemDefault()).toInstant())
-        );
-        return time != null ? time : 0L;
-    }
-
+    // 🔥 [수정 1] 주간 통계 (차트 데이터) - isCorrect 필터 추가
     public List<Integer> getWeeklyStudyData(Long userId) {
         LocalDate today = LocalDate.now();
         LocalDate startDay = today.minusDays(6);
+
         LocalDateTime startLdt = startDay.atStartOfDay();
         LocalDateTime endLdt = today.atTime(java.time.LocalTime.MAX);
 
@@ -229,7 +212,9 @@ public class KotlinProblemService {
 
         int[] weeklyCounts = new int[7];
         for (SubmissionHistory h : historyList) {
+            // 🔥 오답인 경우 카운트하지 않고 건너뛰기
             if (!h.isCorrect()) continue;
+
             LocalDate solvedDate = h.getSubmittedAt().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
             int index = (int) java.time.temporal.ChronoUnit.DAYS.between(startDay, solvedDate);
             if (index >= 0 && index < 7) weeklyCounts[index]++;
@@ -239,6 +224,7 @@ public class KotlinProblemService {
         return result;
     }
 
+    // 🔥 [수정 2] 월간 통계 (차트 데이터) - isCorrect 필터 추가
     public List<Integer> getMonthlyStudyData(Long userId) {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime startLdt = now.withDayOfMonth(1).with(java.time.LocalTime.MIN);
@@ -253,7 +239,9 @@ public class KotlinProblemService {
         int daysInMonth = now.toLocalDate().lengthOfMonth();
         int[] dailyCounts = new int[daysInMonth];
         for (SubmissionHistory h : historyList) {
+            // 🔥 오답인 경우 카운트하지 않고 건너뛰기
             if (!h.isCorrect()) continue;
+
             int day = h.getSubmittedAt().toInstant().atZone(ZoneId.systemDefault()).getDayOfMonth();
             if (day - 1 < dailyCounts.length) dailyCounts[day - 1]++;
         }
@@ -262,6 +250,7 @@ public class KotlinProblemService {
         return result;
     }
 
+    // 🔥 [수정 3] 연간/전체 통계 (차트 데이터) - isCorrect 필터 추가
     public List<Integer> getAllStudyData(Long userId) {
         int currentYear = LocalDate.now().getYear();
         int startYear = currentYear - 4;
@@ -269,7 +258,9 @@ public class KotlinProblemService {
 
         List<SubmissionHistory> allHistory = historyRepository.findByUserId(userId);
         for (SubmissionHistory h : allHistory) {
+            // 🔥 오답인 경우 카운트하지 않고 건너뛰기
             if (!h.isCorrect()) continue;
+
             int solvedYear = h.getSubmittedAt().toInstant().atZone(ZoneId.systemDefault()).getYear();
             int index = solvedYear - startYear;
             if (index >= 0 && index < 5) yearlyCounts[index]++;
@@ -279,6 +270,7 @@ public class KotlinProblemService {
         return result;
     }
 
+    // 🔥 [수정 4] 연간 (올해 월별) - isCorrect 필터 추가
     public List<Integer> getYearlyStudyData(Long userId) {
         int year = LocalDate.now().getYear();
         int[] monthlyCounts = new int[12];
@@ -293,7 +285,9 @@ public class KotlinProblemService {
         );
 
         for (SubmissionHistory h : list) {
+            // 🔥 오답인 경우 카운트하지 않고 건너뛰기
             if (!h.isCorrect()) continue;
+
             int month = h.getSubmittedAt().toInstant().atZone(ZoneId.systemDefault()).getMonthValue();
             monthlyCounts[month - 1]++;
         }
@@ -302,6 +296,7 @@ public class KotlinProblemService {
         return result;
     }
 
+    // 🔥 [총 학습 시간] (이 함수들은 Repository 쿼리에서 isCorrect 필터링을 하므로 수정 불필요)
     public Long getTotalStudyTime(Long userId) {
         Long total = historyRepository.getTotalStudyTime(userId);
         return total != null ? total : 0L;
@@ -310,8 +305,10 @@ public class KotlinProblemService {
     public Long getWeeklyTotalTime(Long userId) {
         LocalDate today = LocalDate.now();
         LocalDate startDay = today.minusDays(6);
+
         Date start = Date.from(startDay.atStartOfDay(ZoneId.systemDefault()).toInstant());
         Date end = Date.from(today.atTime(java.time.LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant());
+
         return historyRepository.getSumStudyTimeBetween(userId, start, end);
     }
 
@@ -319,8 +316,10 @@ public class KotlinProblemService {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime startLdt = now.withDayOfMonth(1).with(java.time.LocalTime.MIN);
         LocalDateTime endLdt = now.with(java.time.temporal.TemporalAdjusters.lastDayOfMonth()).with(java.time.LocalTime.MAX);
+
         Date start = Date.from(startLdt.atZone(ZoneId.systemDefault()).toInstant());
         Date end = Date.from(endLdt.atZone(ZoneId.systemDefault()).toInstant());
+
         return historyRepository.getSumStudyTimeBetween(userId, start, end);
     }
 
@@ -328,6 +327,7 @@ public class KotlinProblemService {
         int year = LocalDate.now().getYear();
         LocalDateTime start = LocalDateTime.of(year, 1, 1, 0, 0);
         LocalDateTime end = LocalDateTime.of(year, 12, 31, 23, 59, 59);
+
         return historyRepository.getSumStudyTimeBetween(userId,
                 Date.from(start.atZone(ZoneId.systemDefault()).toInstant()),
                 Date.from(end.atZone(ZoneId.systemDefault()).toInstant()));
