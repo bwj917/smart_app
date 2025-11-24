@@ -24,15 +24,14 @@ public class SubmissionHistory {
     private Long problemId;
 
     @Column(nullable = false)
-    private boolean isCorrect; // 이 필드 때문에 Getter가 필요합니다.
+    private boolean isCorrect;
 
     @Temporal(TemporalType.TIMESTAMP)
-    private Date submittedAt; // 언제 풀었는지 기록
+    private Date submittedAt;
 
     @Column(nullable = false)
     private int studyTime;
 
-    // --- 생성자 ---
     public SubmissionHistory() {}
 
     public SubmissionHistory(Long userId, Long problemId, boolean isCorrect, Date submittedAt, int studyTime) {
@@ -43,17 +42,18 @@ public class SubmissionHistory {
         this.studyTime = studyTime;
     }
 
-    // --- Getter & Setter ---
-
-    // 🔥 [핵심 수정] 이 Getter가 누락되어 에러가 발생했습니다.
-    public boolean isCorrect() {
-        return isCorrect;
-    }
-
-    public Date getSubmittedAt() { return submittedAt; }
-
-    // 이외의 다른 Getter/Setter도 필요하다면 여기에 추가해야 합니다.
-    public int getStudyTime() { return studyTime; }
+    // --- Getter ---
+    public Long getId() { return id; }
     public Long getUserId() { return userId; }
     public Long getProblemId() { return problemId; }
+    public boolean isCorrect() { return isCorrect; }
+    public Date getSubmittedAt() { return submittedAt; }
+    public int getStudyTime() { return studyTime; }
+
+    // --- 🔥 [추가] Setter (이게 없어서 에러가 났습니다) ---
+    public void setUserId(Long userId) { this.userId = userId; }
+    public void setProblemId(Long problemId) { this.problemId = problemId; }
+    public void setCorrect(boolean correct) { isCorrect = correct; }
+    public void setSubmittedAt(Date submittedAt) { this.submittedAt = submittedAt; }
+    public void setStudyTime(int studyTime) { this.studyTime = studyTime; }
 }

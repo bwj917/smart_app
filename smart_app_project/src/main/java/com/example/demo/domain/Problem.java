@@ -1,16 +1,15 @@
 package com.example.demo.domain;
 
-import jakarta.persistence.*; // Spring Boot 3.x 이상 버전
+import jakarta.persistence.*;
 
-@Entity // 1. 이 클래스가 DB 테이블과 매핑됨을 명시
-@Table(name = "PROBLEM") // 2. 실제 테이블 이름 지정 (오라클은 대문자 권장)
+@Entity
+@Table(name = "PROBLEM")
 public class Problem {
 
     @Id
     @Column(name = "PROBLEMID")
     private Long problemId;
 
-    // question, answer는 DB에 QUESTION, ANSWER로 저장되어 있다고 가정
     private String question;
 
     private String answer;
@@ -18,9 +17,6 @@ public class Problem {
     @Column(name = "COURSE_ID")
     private String courseId;
 
-
-
-    // 기본 생성자 (필수)
     public Problem() {}
 
     public Long getProblemId() {
@@ -47,27 +43,17 @@ public class Problem {
         this.answer = answer;
     }
 
-//    public Integer getProblemLevel() {
-//        return problemLevel;
-//    }
-//
-//    public void setProblemLevel(Integer problemLevel) {
-//        this.problemLevel = problemLevel;
-//    }
-//
-//    public Date getNextReviewTime() {
-//        return nextReviewTime;
-//    }
-//
-//    public void setNextReviewTime(Date nextReviewTime) {
-//        this.nextReviewTime = nextReviewTime;
-//    }
+    // 🔥 [추가] 누락되었던 Getter/Setter 추가
+    public String getCourseId() {
+        return courseId;
+    }
 
-    // Getter 및 Setter (데이터 접근용)
-    // ... (생략)
-    
+    public void setCourseId(String courseId) {
+        this.courseId = courseId;
+    }
+
     @Override
     public String toString() {
-        return "문제 [ID=" + problemId + ", 질문='" + question + "', 답변='" + answer + "]";
+        return "Problem [id=" + problemId + ", question=" + question + ", courseId=" + courseId + "]";
     }
 }
