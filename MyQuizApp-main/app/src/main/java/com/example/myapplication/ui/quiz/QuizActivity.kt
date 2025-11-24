@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
 import android.text.Spannable
+import android.text.SpannableString
 import android.text.SpannableStringBuilder
 import android.text.style.ForegroundColorSpan
 import android.text.style.RelativeSizeSpan
@@ -14,7 +15,7 @@ import android.util.Log
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
-import android.widget.EditText
+import android.widget.EditText // 🔥 EditText 사용 (ClassCastException 방지)
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
@@ -22,17 +23,14 @@ import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.lifecycleScope // 🔥 [추가] 코루틴 사용
 import com.example.myapplication.R
 import com.example.myapplication.data.model.Problem
-import com.example.myapplication.data.remote.RetrofitClient // 🔥 [추가] 서버 통신
 import com.example.myapplication.ui.viewmodel.ProblemViewModel
 import com.example.myapplication.util.toProblemStatusText
 import com.example.myapplication.util.toRelativeReviewTime
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.progressindicator.LinearProgressIndicator
-import kotlinx.coroutines.launch // 🔥 [추가]
 
 class QuizActivity : AppCompatActivity() {
 
@@ -40,14 +38,15 @@ class QuizActivity : AppCompatActivity() {
     private var actualProblems: List<Problem> = emptyList()
     private val total get() = actualProblems.size
 
+    // 🔥 수정: Intent에서 받아오기 위해 var로 변경
     private var currentUserId: Long = 0L
     private lateinit var courseId: String
 
-    // 뷰 변수 (보내주신 XML ID와 일치)
+    // 뷰 변수
     private lateinit var progress: LinearProgressIndicator
     private lateinit var tvPercent: TextView
     private lateinit var tvQuestion: TextView
-    private lateinit var etAnswerInput: EditText
+    private lateinit var etAnswerInput: EditText // 🔥 EditText 타입 유지
     private lateinit var btnSubmit: MaterialButton
 
     private lateinit var feedbackBar: View
@@ -57,6 +56,7 @@ class QuizActivity : AppCompatActivity() {
 
     private lateinit var btnHint: MaterialButton
 
+    // 레벨 및 상태 표시용 뷰
     private lateinit var tvLevel: TextView
     private lateinit var tvProblemStatus: TextView
 
@@ -68,16 +68,16 @@ class QuizActivity : AppCompatActivity() {
     private var currentHintText: CharSequence? = null
     private var solvedCount = 0
 
+    // 정답 제출 전 레벨을 기억하기 위한 변수
     private var previousLevel = 0
 
-    // 🔥 [추가] 시간 측정 변수
-    private var startTime: Long = 0L
-    private var isSubmitted = false
+    private var startTime: Long = 0L // 시작 시간
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_quiz)
 
+        // 1. 데이터 수신 (Intent)
         courseId = intent.getStringExtra(CourseIds.EXTRA_COURSE_ID) ?: CourseIds.COMP_BASIC
         currentUserId = intent.getLongExtra(CourseIds.EXTRA_USER_ID, 0L)
 
@@ -87,15 +87,23 @@ class QuizActivity : AppCompatActivity() {
             return
         }
 
+        // 2. 초기화
         bindViews()
+
+        // 3. ViewModel 관찰
         observeViewModel()
 
+        // 4. 진행 상황 로드
         val shouldReset = intent.getBooleanExtra("RESET_PROGRESS", false)
+
         if (shouldReset) {
+            // 초기화 요청이 오면 무조건 1번부터 시작
             current = 1
             solvedCount = 0
+            // 저장소도 즉시 초기화 (덮어쓰기)
             ProgressStore.save(this, courseId, currentIndex = 1, solvedCount = 0)
         } else {
+            // 기존 로직 (이어하기)
             val (savedIndex, savedSolved) = ProgressStore.load(this, courseId)
             if (savedSolved >= 10 || savedIndex > 10) {
                 current = 1
@@ -107,16 +115,25 @@ class QuizActivity : AppCompatActivity() {
             }
         }
 
+        // 5. 서버에 문제 요청
+        Log.d(TAG, "문제 요청 시작: UserID=$currentUserId, Course=$courseId")
         problemViewModel.fetchProblems(currentUserId, courseId)
 
+        // 6. 뒤로가기 콜백 (showExitConfirmDialog 함수가 아래에 정의되어 있어야 함)
         onBackPressedDispatcher.addCallback(this) { showExitConfirmDialog() }
     }
 
     private fun observeViewModel() {
+        // 문제 목록 관찰
         problemViewModel.allProblemsLiveData.observe(this) { problems ->
             if (problems.isNotEmpty()) {
                 actualProblems = problems
+                Log.i(TAG, "서버에서 ${problems.size}개의 문제 수신 완료")
+
+                // ViewModel 인덱스 동기화
                 problemViewModel.setCurrentIndex(current - 1)
+
+                // UI 초기화 및 화면 그리기 (원래 코드 함수명 사용)
                 setupProgress()
                 renderQuestion()
                 updateProgress()
@@ -125,6 +142,7 @@ class QuizActivity : AppCompatActivity() {
             }
         }
 
+        // 제출 결과 관찰
         problemViewModel.submissionResult.observe(this) { result ->
             if (result != null) {
                 renderSubmitResult(result.isCorrect, result.updatedProblem)
@@ -134,6 +152,7 @@ class QuizActivity : AppCompatActivity() {
             }
         }
 
+        // 힌트 관찰
         problemViewModel.hintContent.observe(this) { hint ->
             if (!hint.isNullOrEmpty()) {
                 var fullHint: String? = null
@@ -149,32 +168,40 @@ class QuizActivity : AppCompatActivity() {
                     etAnswerInput.hint = fullHint
                     Toast.makeText(this, "힌트: $fullHint", Toast.LENGTH_SHORT).show()
                 }
+                // 🔥 [추가] 힌트를 받았으므로 버튼 상태 업데이트
+                // hintCount는 이미 증가된 상태입니다. (1, 2, 3...)
 
                 if (hintCount >= 3) {
                     btnHint.isEnabled = false
                     btnHint.text = "힌트 소진"
                 } else {
+                    // 다음 힌트를 위한 텍스트 업데이트
                     updateHintButtonState(hintCount)
                 }
             }
         }
 
+        // 에러 메시지 관찰
         problemViewModel.errorMessage.observe(this) { message ->
             if (!message.isNullOrEmpty()) Log.e(TAG, "Error: $message")
         }
     }
 
     private fun bindViews() {
+        // 🔥 XML의 TextInputLayout 내부 EditText를 가져옵니다. (캐스팅 없이 EditText로 받음)
         etAnswerInput = findViewById(R.id.etAnswerInput)
+
         btnSubmit = findViewById(R.id.btnSubmit)
         progress = findViewById(R.id.progressQuiz)
         tvPercent = findViewById(R.id.tvProgressPercent)
         tvQuestion = findViewById(R.id.tvQuestion)
         ivJudge = findViewById(R.id.ivJudge)
+
         feedbackBar = findViewById(R.id.feedbackBar)
         tvFeedback = findViewById(R.id.tvFeedback)
         btnContinue = findViewById(R.id.btnContinue)
         btnHint = findViewById(R.id.btnHint)
+
         tvProblemStatus = findViewById(R.id.tvProblemStatus)
         tvLevel = findViewById(R.id.tvLevel)
 
@@ -200,7 +227,7 @@ class QuizActivity : AppCompatActivity() {
     private fun goToNextProblem() {
         if (current < total) {
             current += 1
-            problemViewModel.nextProblem()
+            problemViewModel.nextProblem() // ViewModel 인덱스 증가
             answered = false
             hintCount = 0
 
@@ -241,30 +268,27 @@ class QuizActivity : AppCompatActivity() {
         val userAnswer = etAnswerInput.text.toString().trim()
         val currentProblem = actualProblems.getOrNull(current - 1)
 
-        // 🔥 [추가] 시간 계산 및 제출 플래그 설정
         val endTime = System.currentTimeMillis()
         val durationSeconds = ((endTime - startTime) / 1000).toInt()
-        isSubmitted = true
 
         if (currentProblem == null) return
 
         if (userAnswer.isBlank()) {
             tvFeedback.text = "답변을 입력해주세요."
             feedbackBar.visibility = View.VISIBLE
-            isSubmitted = false // 실패 시 플래그 원복
             return
         }
 
         btnSubmit.isEnabled = false
         etAnswerInput.isEnabled = false
 
-        // 🔥 [수정] durationSeconds를 ViewModel에 전달
-        problemViewModel.submitAnswer(currentProblem.problemId, currentUserId, userAnswer, hintCount, durationSeconds)
+        problemViewModel.submitAnswer(currentProblem.problemId, currentUserId, userAnswer, hintCount,durationSeconds)
     }
 
     private fun renderQuestion() {
         val item = actualProblems.getOrNull(current - 1) ?: return
 
+        // 1. 문제 상태 및 레벨 텍스트 표시
         tvProblemStatus.text = item.toProblemStatusText()
         previousLevel = item.problemLevel ?: 0
 
@@ -273,27 +297,65 @@ class QuizActivity : AppCompatActivity() {
         } else {
             tvLevel.visibility = View.VISIBLE
             when (previousLevel) {
-                1 -> { tvLevel.text = "복습 1단계 "; tvLevel.setTextColor(Color.parseColor("#FF5252")) }
-                2 -> { tvLevel.text = "복습 2단계 "; tvLevel.setTextColor(Color.parseColor("#FF9800")) }
-                3 -> { tvLevel.text = "복습 3단계 "; tvLevel.setTextColor(Color.parseColor("#FBC02D")) }
-                4 -> { tvLevel.text = "복습 4단계 "; tvLevel.setTextColor(Color.parseColor("#4CAF50")) }
-                5 -> { tvLevel.text = "복습 5단계"; tvLevel.setTextColor(Color.parseColor("#2196F3")) }
-                else -> { tvLevel.text = "복습 ${previousLevel}단계"; tvLevel.setTextColor(Color.parseColor("#555555")) }
+                1 -> {
+                    tvLevel.text = "복습 1단계 "
+                    tvLevel.setTextColor(Color.parseColor("#FF5252"))
+                }
+                2 -> {
+                    tvLevel.text = "복습 2단계 "
+                    tvLevel.setTextColor(Color.parseColor("#FF9800"))
+                }
+                3 -> {
+                    tvLevel.text = "복습 3단계 "
+                    tvLevel.setTextColor(Color.parseColor("#FBC02D"))
+                }
+                4 -> {
+                    tvLevel.text = "복습 4단계 "
+                    tvLevel.setTextColor(Color.parseColor("#4CAF50"))
+                }
+                5 -> {
+                    tvLevel.text = "복습 5단계"
+                    tvLevel.setTextColor(Color.parseColor("#2196F3"))
+                }
+                else -> {
+                    tvLevel.text = "복습 ${previousLevel}단계"
+                    tvLevel.setTextColor(Color.parseColor("#555555"))
+                }
             }
         }
 
-        // 🔥 [추가] 새 문제 시작 시 시간 초기화
         startTime = System.currentTimeMillis()
-        isSubmitted = false
 
+        // 힌트 버튼 초기화
         btnHint.isEnabled = true
         currentHintText = null
         btnHint.setIconResource(R.drawable.ic_lightbulb)
         btnHint.iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
         btnHint.iconPadding = (8 * resources.displayMetrics.density).toInt()
 
+        // 🔥 [수정] 별도 함수로 분리하여 초기 상태(0회 사용) 적용
         updateHintButtonState(0)
 
+        // 텍스트 구성: "힌트 보기  (Lv -1)"
+        val mainText = "힌트 보기"
+        val subText = "  (Lv -1)" // 패널티 문구
+
+        val builder = SpannableStringBuilder()
+        builder.append(mainText)
+
+        val start = builder.length
+        builder.append(subText)
+        val end = builder.length
+
+        // " (Lv -1)" 부분 스타일 적용 (작게, 빨간색, 굵게)
+        builder.setSpan(RelativeSizeSpan(0.9f), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+        builder.setSpan(ForegroundColorSpan(Color.parseColor("#E0E0E0")), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+        builder.setSpan(StyleSpan(Typeface.BOLD), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+
+        btnHint.text = builder
+
+
+        // 3. 문제 텍스트 및 입력창 초기화
         tvQuestion.text = item.question
         findViewById<TextView>(R.id.tvQuestionTitle).text = "${current} / ${total} 문제"
 
@@ -305,6 +367,7 @@ class QuizActivity : AppCompatActivity() {
         hideFeedbacks()
         problemViewModel.clearHintData()
 
+        // 4. 캐릭터 및 버튼 상태 초기화
         ivJudge.setImageResource(R.drawable.quit2)
         btnSubmit.visibility = View.VISIBLE
         btnContinue.visibility = View.GONE
@@ -324,6 +387,10 @@ class QuizActivity : AppCompatActivity() {
 
         if (isCorrect) {
             val newLevel = updatedProblem?.problemLevel ?: 0
+            val levelDiff = newLevel - previousLevel
+            // val statusText = if (levelDiff > 0) "단계 상승 (+${levelDiff})" else "단계 유지"
+            val statusColor = ContextCompat.getColor(this, R.color.brand_primary)
+
             val reviewTime = updatedProblem?.nextReviewTime
             val timeText = reviewTime.toRelativeReviewTime()
 
@@ -367,13 +434,11 @@ class QuizActivity : AppCompatActivity() {
             tvFeedback.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark))
             ivJudge.setImageResource(R.drawable.quit4)
 
+            // 오답 시 다시 풀기 기능을 원하면 아래 주석 해제
             etAnswerInput.isEnabled = true
             btnSubmit.visibility = View.VISIBLE
             btnContinue.visibility = View.GONE
             answered = false
-
-            // 🔥 [추가] 오답 시 다시 풀게 하므로 시간 측정 계속
-            isSubmitted = false
         }
         ivJudge.visibility = View.VISIBLE
     }
@@ -388,6 +453,7 @@ class QuizActivity : AppCompatActivity() {
         }
     }
 
+    // 🔥 여기에 누락되었던 함수를 정의합니다.
     private fun showExitConfirmDialog() {
         MaterialAlertDialogBuilder(this)
             .setTitle("퀴즈 나가기")
@@ -414,10 +480,17 @@ class QuizActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun hideKeyboard() {
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(currentFocus?.windowToken, 0)
+    }
+
     private fun updateHintButtonState(count: Int) {
         val mainText = "힌트 보기"
+        // 0번, 1번 사용 후 -> 다음은 -1 감소
+        // 2번 사용 후 -> 다음(3번째)은 초기화
         val subText = if (count < 2) "  (Lv -1)" else "  (Lv 초기화)"
-        val subColor = if (count < 2) "#E0E0E0" else "#FF5252"
+        val subColor = if (count < 2) "#E0E0E0" else "#FF5252" // 초기화는 빨간색 경고
 
         val builder = SpannableStringBuilder()
         builder.append(mainText)
@@ -432,40 +505,10 @@ class QuizActivity : AppCompatActivity() {
         btnHint.text = builder
     }
 
-    // 🔥 [추가] 화면 나갈 때 시간 저장
     override fun onPause() {
         super.onPause()
         if (!skipAutoSave) {
             ProgressStore.save(this, courseId, currentIndex = current, solvedCount = solvedCount)
-        }
-
-        if (!isSubmitted && startTime > 0) {
-            val now = System.currentTimeMillis()
-            val durationSeconds = ((now - startTime) / 1000).toInt()
-            if (durationSeconds > 0) {
-                saveStudyTimeToServer(durationSeconds)
-            }
-        }
-    }
-
-    // 🔥 [추가] 화면 돌아올 때 시간 재시작
-    override fun onResume() {
-        super.onResume()
-        if (!isSubmitted) {
-            startTime = System.currentTimeMillis()
-        }
-    }
-
-    // 🔥 [추가] 서버 통신 함수
-    private fun saveStudyTimeToServer(seconds: Int) {
-        lifecycleScope.launch {
-            try {
-                val body = mapOf("userId" to currentUserId, "time" to seconds)
-                RetrofitClient.problemApiService.saveStudyTime(body)
-                Log.d(TAG, "학습 시간 자동 저장됨: ${seconds}초")
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
         }
     }
 }
