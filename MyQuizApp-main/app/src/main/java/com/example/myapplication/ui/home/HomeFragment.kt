@@ -7,7 +7,6 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
@@ -20,6 +19,7 @@ import com.example.myapplication.ui.course.CourseSelectActivity
 import com.example.myapplication.ui.quiz.CourseIds
 import com.example.myapplication.ui.quiz.QuizActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class HomeFragment : Fragment() {
@@ -27,26 +27,31 @@ class HomeFragment : Fragment() {
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
 
-    // 1. 멤버 변수 선언 (화면 갱신용)
     private var courses = mutableListOf(
-        CourseItem("정보처리기능사", 0))
+        CourseItem("정보처리기능사", 0)
+    )
+
+    // 초기 퀘스트 데이터 (0/0 상태)
+    private var quests = mutableListOf(
+        QuestItem("일일 학습 30분", 0, 30, "분"),
+        QuestItem("문제 20개 풀기", 0, 20, "개")
+    )
 
     private lateinit var courseAdapter: CourseAdapter
+    private lateinit var questAdapter: QuestAdapter // 🔥 퀘스트 어댑터 변수 추가
 
-    // 2. 과목 선택 화면에서 돌아왔을 때 실행되는 콜백
     private val startCourseSelect = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             val selectedName = result.data?.getStringExtra("SELECTED_NAME")
 
             if (selectedName != null) {
-                // 데이터 갱신
                 val oldItem = courses[0]
                 courses[0] = oldItem.copy(title = selectedName)
 
-                // 🔥 [핵심 수정] 리스트를 새로 복사해서(.toList()) 넣어야 어댑터가 변경을 확실히 감지합니다.
                 courseAdapter.updateItems(courses.toList())
-
                 Toast.makeText(requireContext(), "$selectedName(으)로 변경!", Toast.LENGTH_SHORT).show()
+
+                updateDailyProgress()
             }
         }
     }
@@ -57,37 +62,35 @@ class HomeFragment : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        // ⚠️ 여기에 val courses = ... 코드가 있으면 절대 안 됩니다. (삭제됨 확인)
-
-        val quests = mutableListOf(
-            QuestItem("일일 학습 30분", 30, false),
-            QuestItem("문제 20개 풀기", 20, false)
-        )
+        super.onViewCreated(view, savedInstanceState)
 
         binding.rvCourses.layoutManager = LinearLayoutManager(requireContext())
         binding.rvQuests.layoutManager = LinearLayoutManager(requireContext())
 
-        // 3. 어댑터 초기화
+        // 코스 어댑터 설정
         courseAdapter = CourseAdapter(
-            items = courses, // 멤버 변수 사용
-            onStartClick = { item: CourseItem ->
-                // 학습하기 버튼
-                showQuizPreviewDialog()
-            },
+            items = courses,
+            onStartClick = { item -> showQuizPreviewDialog() },
             onCardClick = { },
             onReviewClick = { },
             onChangeClick = {
-                // 과목 변경하기 버튼
                 val intent = Intent(requireContext(), CourseSelectActivity::class.java)
                 startCourseSelect.launch(intent)
             }
         )
 
-        // 🔥 [필수] 어댑터 연결
-        binding.rvCourses.adapter = courseAdapter
-        binding.rvQuests.adapter = QuestAdapter(quests)
+        // 퀘스트 어댑터 설정
+        questAdapter = QuestAdapter(quests)
 
-        updateDailyProgress()
+        binding.rvCourses.adapter = courseAdapter
+        binding.rvQuests.adapter = questAdapter
+    }
+
+    override fun onHiddenChanged(hidden: Boolean) {
+        super.onHiddenChanged(hidden)
+        if (!hidden) {
+            updateDailyProgress()
+        }
     }
 
     private fun showQuizPreviewDialog() {
@@ -111,7 +114,6 @@ class HomeFragment : Fragment() {
                         return@launch
                     }
 
-                    // 문제 통계 계산
                     val now = System.currentTimeMillis()
                     var newCount = 0
                     var retryCount = 0
@@ -143,12 +145,9 @@ class HomeFragment : Fragment() {
                         .setPositiveButton("학습 시작") { d, _ ->
                             d.dismiss()
                             val intent = Intent(requireContext(), QuizActivity::class.java)
-
-                            // 🔥 변경된 과목명으로 퀴즈 시작
                             intent.putExtra(CourseIds.EXTRA_COURSE_ID, courses[0].title)
                             intent.putExtra(CourseIds.EXTRA_USER_ID, currentUserId)
                             intent.putExtra("RESET_PROGRESS", true)
-
                             startActivity(intent)
                         }
                         .show()
@@ -162,37 +161,59 @@ class HomeFragment : Fragment() {
             }
         }
     }
+
     private fun updateDailyProgress() {
         val currentUserId = AuthManager.getUserId(requireContext()) ?: return
 
         lifecycleScope.launch {
             try {
-                // courses 리스트를 복사해서 수정할 준비 (동시성 문제 방지)
-                val newCourses = courses.toMutableList()
+                delay(500)
 
-                // 🔥 [수정 2] 모든 과목을 하나씩 돌면서 서버에 물어봄
+                // 1. 코스 진행률 갱신 (기존 로직)
+                val newCourses = courses.toMutableList()
                 for (i in newCourses.indices) {
                     val course = newCourses[i]
-
-                    // "정보처리기능사 푼 개수 줘", "정보보안기사 푼 개수 줘" ...
                     val response = RetrofitClient.problemApiService.getTodaySolvedCount(currentUserId, course.title)
 
                     if (response.isSuccessful) {
                         val count = response.body()?.get("count") ?: 0
                         val goal = 60
-
-                        // 퍼센트 계산
                         val percent = if (goal > 0) (count.toDouble() / goal * 100).toInt() else 0
                         val safePercent = percent.coerceIn(0, 100)
 
-                        // 리스트 데이터 업데이트
-                        newCourses[i] = course.copy(progressPercent = safePercent)
+                        newCourses[i] = course.copy(progressPercent = safePercent, solvedCount = count)
                     }
                 }
-
-                // 🔥 [수정 3] 다 고친 리스트를 원본에 덮어쓰고 어댑터에 알림
                 courses = newCourses
-                courseAdapter.updateItems(courses.toList())
+
+                // 2. 🔥 [추가] 일일 퀘스트(전구) 데이터 갱신
+                // 서버에서 '오늘 전체 통계'를 가져옵니다.
+                val statsResponse = RetrofitClient.problemApiService.getTodayTotalStats(currentUserId)
+
+                if (statsResponse.isSuccessful) {
+                    val body = statsResponse.body()
+                    // 문제 수
+                    val totalCount = (body?.get("count") as? Number)?.toInt() ?: 0
+                    // 공부 시간 (초 단위) -> 분 단위로 변환
+                    val totalTimeSec = (body?.get("studyTime") as? Number)?.toLong() ?: 0L
+                    val totalTimeMin = (totalTimeSec / 60).toInt()
+
+                    // 퀘스트 리스트 업데이트
+                    val newQuests = mutableListOf(
+                        QuestItem("일일 학습 30분", totalTimeMin, 30, "분"),
+                        QuestItem("문제 20개 풀기", totalCount, 20, "개")
+                    )
+                    quests = newQuests
+                }
+
+                // 3. UI 반영
+                view?.post {
+                    if (_binding != null) {
+                        courseAdapter.updateItems(courses.toList())
+                        questAdapter.updateItems(quests.toList()) // 퀘스트 어댑터 갱신
+                        Log.d("DEBUG_HOME", "UI 강제 업데이트 실행됨")
+                    }
+                }
 
             } catch (e: Exception) {
                 Log.e("DEBUG_HOME", "에러 발생", e)
@@ -200,12 +221,8 @@ class HomeFragment : Fragment() {
         }
     }
 
-
-    // 🔥 [추가] 화면이 보일 때마다 서버에서 데이터를 가져와 갱신합니다.
     override fun onResume() {
         super.onResume()
-
-        // 뷰가 유효할 때만 학습량 갱신 함수 호출
         view?.let {
             updateDailyProgress()
         }

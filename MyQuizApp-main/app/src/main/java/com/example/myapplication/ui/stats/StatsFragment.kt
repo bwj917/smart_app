@@ -18,8 +18,8 @@ import com.github.mikephil.charting.data.BarData
 import com.github.mikephil.charting.data.BarDataSet
 import com.github.mikephil.charting.data.BarEntry
 import com.google.android.material.button.MaterialButtonToggleGroup
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.collections.ArrayList
@@ -40,7 +40,6 @@ class StatsFragment : Fragment() {
         chart = view.findViewById(R.id.mainChart)
         val toggleGroup = view.findViewById<MaterialButtonToggleGroup>(R.id.toggleGroup)
 
-        // 1. 버튼 클릭 리스너 설정
         toggleGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (isChecked) {
                 val mode = when (checkedId) {
@@ -51,7 +50,6 @@ class StatsFragment : Fragment() {
                     else -> "weekly"
                 }
                 currentMode = mode
-                // 탭 변경 시에는 즉시 로드 시작
                 fetchStats(view, mode)
             }
         }
@@ -60,16 +58,20 @@ class StatsFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         view?.let { v ->
-            // 🔥 [핵심] 뷰가 포그라운드에 올 때마다 단일 진입점에서 로드 시작
             startRefresh(v)
         }
     }
 
-    // 🔥 [통합 함수] DB 커밋 대기 및 상단/차트 데이터 갱신을 순차적으로 처리
+    override fun onHiddenChanged(hidden: Boolean) {
+        super.onHiddenChanged(hidden)
+        if (!hidden) {
+            view?.let { startRefresh(it) }
+        }
+    }
+
     private fun startRefresh(view: View) {
         val userId = AuthManager.getUserId(requireContext()) ?: return
 
-        // 현재 선택된 모드 파악 (버튼 상태)
         val toggleGroup = view.findViewById<MaterialButtonToggleGroup>(R.id.toggleGroup)
         val mode = when (toggleGroup.checkedButtonId) {
             R.id.btnWeekly -> "weekly"
@@ -82,32 +84,34 @@ class StatsFragment : Fragment() {
 
         lifecycleScope.launch {
             try {
-                // 1. 🔥 [COMMIT 대기] 딜레이를 1.5초로 늘려 서버 커밋 완료를 확실히 보장합니다.
-                delay(1500)
+                delay(500) // 반응 속도 개선 (0.5초)
 
-                // 2. 상단 누적 통계 API 호출 (/all)
+                // 1. 오늘의 전체 통계 가져오기 (상단 카드)
+                val todayStatsResponse = RetrofitClient.problemApiService.getTodayTotalStats(userId)
+                if (todayStatsResponse.isSuccessful) {
+                    val body = todayStatsResponse.body()
+                    val todayCount = (body?.get("count") as? Number)?.toInt() ?: 0
+                    val todayTime = (body?.get("studyTime") as? Number)?.toLong() ?: 0L
+
+                    view.findViewById<TextView>(R.id.tvTodaySolved).text = "${todayCount}문제"
+                    view.findViewById<TextView>(R.id.tvTodayTime).text = formatSecondsToTime(todayTime)
+                }
+
+                // 2. 전체 누적 통계 가져오기 (하단 카드)
                 val allStatsResponse = RetrofitClient.problemApiService.getAllStats(userId)
-
                 if (allStatsResponse.isSuccessful) {
                     val body = allStatsResponse.body()
-
-                    // Header 데이터 추출 및 계산
                     val rawCounts = body?.get("dailyCounts") as? List<*>
                     val counts = rawCounts?.filterIsInstance<Number>()?.map { it.toInt() } ?: emptyList()
-                    val totalSolved = counts.sum() // 누적 총 문제 수
-
+                    val totalSolved = counts.sum()
                     val totalSeconds = (body?.get("totalTimeSeconds") as? Number)?.toLong() ?: 0L
-                    val timeString = formatSecondsToTime(totalSeconds)
 
-                    // Header UI 업데이트
                     view.findViewById<TextView>(R.id.tvHeaderTotalSolved).text = "${totalSolved}문제"
-                    view.findViewById<TextView>(R.id.tvHeaderTotalTime).text = timeString
+                    view.findViewById<TextView>(R.id.tvHeaderTotalTime).text = formatSecondsToTime(totalSeconds)
 
-                    // 3. 차트 데이터 갱신 (선택된 모드가 '전체'일 경우, 이미 받은 데이터를 사용)
                     if (mode == "all") {
                         updateUI(view, counts, mode, totalSeconds)
                     } else {
-                        // 4. 다른 모드인 경우, 해당 기간의 API를 호출하여 최신 데이터로 갱신
                         fetchStats(view, mode)
                     }
                 }
@@ -118,15 +122,12 @@ class StatsFragment : Fragment() {
         }
     }
 
-
-    // 🔥 [재활용 함수] 하단 상세 요약 + 차트 (버튼 클릭 및 startRefresh에서 호출)
     private fun fetchStats(view: View, mode: String) {
         val userId = AuthManager.getUserId(requireContext()) ?: return
         currentMode = mode
 
         lifecycleScope.launch {
             try {
-                // 🔥 [딜레이 제거] startRefresh에서 이미 딜레이를 충분히 했으므로 여기서는 제거합니다.
                 val service = RetrofitClient.problemApiService
                 val response = when(mode) {
                     "weekly" -> service.getWeeklyStats(userId)
@@ -155,23 +156,19 @@ class StatsFragment : Fragment() {
     private fun updateUI(view: View, counts: List<Int>, mode: String, periodSeconds: Long) {
         val totalSolved = counts.sum()
         val best = counts.maxOrNull() ?: 0
-
         val timeString = formatSecondsToTime(periodSeconds)
 
-        // 하단 요약 업데이트
         view.findViewById<TextView>(R.id.tvTotalSolved).text = "${totalSolved}문제"
-        view.findViewById<TextView>(R.id.tvStudyTime).text = timeString // 기간별 학습시간
+        view.findViewById<TextView>(R.id.tvStudyTime).text = timeString
 
-        // 최고 기록 표시 (모드별)
         if (mode == "yearly") {
-            view.findViewById<TextView>(R.id.tvBestDay).text = "최고의 달: ${best}문제"
+            view.findViewById<TextView>(R.id.tvBestDay).text = "${best}문제"
         } else if (mode == "all") {
-            view.findViewById<TextView>(R.id.tvBestDay).text = "최고의 해: ${best}문제"
+            view.findViewById<TextView>(R.id.tvBestDay).text = "${best}문제"
         } else {
-            view.findViewById<TextView>(R.id.tvBestDay).text = "최고 기록: ${best}문제"
+            view.findViewById<TextView>(R.id.tvBestDay).text = "${best}문제"
         }
 
-        // 제목
         tvTitle.text = when(mode) {
             "weekly" -> "주간 상세 요약"
             "monthly" -> "월간 상세 요약"
@@ -179,7 +176,6 @@ class StatsFragment : Fragment() {
             else -> "전체 상세 요약"
         }
 
-        // 3. 차트 그리기 준비 (entries, labels, tooltipLabels 로직 유지)
         val entries = ArrayList<BarEntry>()
         val labels = ArrayList<String>()
         val tooltipLabels = ArrayList<String>()
@@ -222,7 +218,6 @@ class StatsFragment : Fragment() {
             }
         }
 
-        // 4. 차트 적용 (스타일링 로직 유지)
         val dataSet = BarDataSet(entries, "학습량")
         dataSet.color = Color.parseColor("#57419d")
         dataSet.highLightColor = Color.parseColor("#FFD700")
@@ -230,7 +225,12 @@ class StatsFragment : Fragment() {
         val barData = BarData(dataSet)
         barData.barWidth = 0.5f
         chart.data = barData
-        // CustomMarkerView 연결 로직 (CustomMarkerView 파일이 별도로 필요함)
+
+        if (tooltipLabels.isNotEmpty()) {
+            val mv = CustomMarkerView(requireContext(), R.layout.view_custom_marker, tooltipLabels)
+            mv.chartView = chart
+            chart.marker = mv
+        }
 
         chart.apply {
             description.isEnabled = false
@@ -260,7 +260,6 @@ class StatsFragment : Fragment() {
         chart.animateY(600)
     }
 
-    // 시간 변환 헬퍼 함수
     private fun formatSecondsToTime(totalSeconds: Long): String {
         if (totalSeconds == 0L) return "0분"
         val hours = totalSeconds / 3600

@@ -5,50 +5,77 @@ import android.content.Context
 object AuthManager {
 
     private const val PREF_NAME = "auth_pref"
-    private const val KEY_LOGIN = "isLoggedIn"
-    private const val KEY_USER_ID = "userId"
+    private const val KEY_USER_ID = "saved_user_id" // 로그인 유지용 (Long)
+    private const val KEY_SAVED_ID_TEXT = "saved_id_text" // 🔥 [추가] 아이디 저장용 (String)
+
+    // 앱이 켜져있는 동안 로그인 정보를 담아둘 변수 (세션)
+    private var sessionUserId: Long? = null
 
     /**
-     * 로그인 상태와 함께 유저 ID를 저장합니다.
+     * 로그인 성공 시 호출 (로그인 유지 처리)
      */
-    fun setLoggedIn(context: Context, value: Boolean, userId: Long? = null) {
+    fun setLoggedIn(context: Context, userId: Long, isKeepLogin: Boolean) {
+        sessionUserId = userId
+
         val pref = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        pref.edit().apply {
-            putBoolean(KEY_LOGIN, value)
-            if (userId != null) {
-                putLong(KEY_USER_ID, userId)
-            } else {
-                remove(KEY_USER_ID)
-            }
-            apply()
+        val editor = pref.edit()
+
+        if (isKeepLogin) {
+            editor.putLong(KEY_USER_ID, userId)
+        } else {
+            editor.remove(KEY_USER_ID)
         }
+        editor.apply()
     }
 
     /**
-     * 저장된 유저 ID를 가져옵니다. 로그인되어 있지 않거나 ID가 없으면 null을 반환합니다.
+     * 🔥 [추가] 아이디 저장 기능
+     * isSave: true면 저장, false면 삭제
      */
-    fun getUserId(context: Context): Long? {
-        if (!isLoggedIn(context)) return null
-
+    fun setSavedIdForDisplay(context: Context, id: String, isSave: Boolean) {
         val pref = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        val userId = pref.getLong(KEY_USER_ID, -1L)
-        return if (userId != -1L) userId else null
+        val editor = pref.edit()
+        if (isSave) {
+            editor.putString(KEY_SAVED_ID_TEXT, id)
+        } else {
+            editor.remove(KEY_SAVED_ID_TEXT)
+        }
+        editor.apply()
+    }
+
+    /**
+     * 🔥 [추가] 저장된 아이디 문자열 가져오기
+     */
+    fun getSavedIdForDisplay(context: Context): String? {
+        val pref = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        return pref.getString(KEY_SAVED_ID_TEXT, null)
+    }
+
+    fun getUserId(context: Context): Long? {
+        if (sessionUserId != null) {
+            return sessionUserId
+        }
+        val pref = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        val savedId = pref.getLong(KEY_USER_ID, -1L)
+
+        return if (savedId != -1L) {
+            sessionUserId = savedId
+            savedId
+        } else {
+            null
+        }
     }
 
     fun isLoggedIn(context: Context): Boolean {
-        val pref = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        return pref.getBoolean(KEY_LOGIN, false)
+        return getUserId(context) != null
     }
 
-    /**
-     * 로그아웃 시 로그인 상태와 유저 ID를 모두 삭제합니다.
-     */
     fun logout(context: Context) {
+        sessionUserId = null
         val pref = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        pref.edit().apply {
-            putBoolean(KEY_LOGIN, false)
-            remove(KEY_USER_ID)
-            apply()
-        }
+        // 🔥 [수정] clear()를 쓰면 '아이디 저장'도 날아가므로, '로그인 유지' 키만 삭제합니다.
+        pref.edit()
+            .remove(KEY_USER_ID)
+            .apply()
     }
 }

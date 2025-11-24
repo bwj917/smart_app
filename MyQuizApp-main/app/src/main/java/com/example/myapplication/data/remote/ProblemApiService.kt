@@ -13,7 +13,6 @@ import retrofit2.http.Query
 
 interface ProblemApiService {
 
-    // ... (기존 문제 관련 API들 유지) ...
     @GET("api/problems/tenProblem")
     suspend fun getTenProblems(
         @Query("userId") userId: Long,
@@ -30,17 +29,20 @@ interface ProblemApiService {
         @Query("userId") userId: Long
     ): Response<HintResponse>
 
+    // 🔥 [신규] 학습 시간 저장 API
+    @POST("api/stats/study_time")
+    suspend fun saveStudyTime(@Body body: Map<String, Any>): Response<Void>
 
-    // ------------- 통계 API -------------
+    @GET("api/stats/today_total")
+    suspend fun getTodayTotalStats(
+        @Query("userId") userId: Long
+    ): Response<Map<String, Any>>
 
     @GET("api/stats/today")
     suspend fun getTodaySolvedCount(
         @Query("userId") userId: Long,
         @Query("courseId") courseId: String
     ): Response<Map<String, Int>>
-
-    // 🔥 [수정] getAllStats, getWeeklyStats 등을 모두 Map<String, Any>로 통일하면 안전합니다.
-    // (JvmSuppressWildcards는 Any 타입 사용 시 필수일 수 있음)
 
     @GET("api/stats/weekly")
     suspend fun getWeeklyStats(@Query("userId") userId: Long): Response<Map<String, Any>>
@@ -51,7 +53,6 @@ interface ProblemApiService {
     @GET("api/stats/yearly")
     suspend fun getYearlyStats(@Query("userId") userId: Long): Response<Map<String, Any>>
 
-    // 🔥 여기도 Any로 변경 (리스트와 Long이 섞여 있으므로)
     @GET("api/stats/all")
     suspend fun getAllStats(@Query("userId") userId: Long): Response<Map<String, Any>>
 }

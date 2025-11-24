@@ -3,6 +3,8 @@ package com.example.myapplication.auth
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.view.KeyEvent
+import android.view.inputmethod.EditorInfo
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -20,12 +22,36 @@ class LoginActivity : AppCompatActivity() {
         binding = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // 1. 저장된 아이디가 있으면 채워넣기
+        val savedId = AuthManager.getSavedIdForDisplay(this)
+        if (!savedId.isNullOrEmpty()) {
+            binding.etId.setText(savedId)
+            binding.cbSaveId.isChecked = true
+        }
+
+        // 2. 로그인 유지 확인
+        if (AuthManager.isLoggedIn(this)) {
+            moveToMain()
+        }
+
+        // 3. 버튼 클릭 리스너
         binding.btnLogin.setOnClickListener { performLogin() }
 
-
-
+        // 4. 회원가입 화면 이동
         binding.tvGoSignUp.setOnClickListener {
             startActivity(Intent(this, SignUpActivity::class.java))
+        }
+
+        // 5. 🔥 [추가] 비밀번호 입력 후 엔터(Done) 키 누르면 로그인 실행
+        binding.etPassword.setOnEditorActionListener { _, actionId, event ->
+            val isEnterKey = (event != null && event.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN)
+
+            if (actionId == EditorInfo.IME_ACTION_DONE || isEnterKey) {
+                performLogin()
+                true // 이벤트 소비 (키보드 내려감 등 후속 동작 제어)
+            } else {
+                false
+            }
         }
     }
 
@@ -33,48 +59,48 @@ class LoginActivity : AppCompatActivity() {
         val id = binding.etId.text.toString().trim()
         val pw = binding.etPassword.text.toString().trim()
 
-        // 1. 입력값 검사
+        val isKeepLogin = binding.cbKeepLogin.isChecked
+        val isSaveId = binding.cbSaveId.isChecked
+
         if (id.isEmpty() || pw.isEmpty()) {
             Toast.makeText(this, "아이디와 비밀번호를 입력하세요", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // 2. 서버로 로그인 요청 (비동기 실행)
         lifecycleScope.launch {
             try {
-                // 🔥 AuthSuccessResponse DTO를 기대
                 val response = RetrofitClient.authApiService.login(id, pw)
 
-                // 3. 응답 처리
                 if (response.isSuccessful) {
-                    // 성공 (200 OK)
                     val authResponse = response.body()
                     if (authResponse?.userId != null) {
                         Toast.makeText(this@LoginActivity, "로그인 성공!", Toast.LENGTH_SHORT).show()
-                        // 내부 저장소에 유저 ID와 로그인 상태 저장
-                        AuthManager.setLoggedIn(this@LoginActivity, true, authResponse.userId)
 
-                        // 메인 화면으로 이동
-                        val intent = Intent(this@LoginActivity, MainActivity::class.java)
-                        startActivity(intent)
-                        finish()
+                        // 아이디 저장 처리
+                        AuthManager.setSavedIdForDisplay(this@LoginActivity, id, isSaveId)
+
+                        // 로그인 유지 처리
+                        AuthManager.setLoggedIn(this@LoginActivity, authResponse.userId, isKeepLogin)
+
+                        moveToMain()
                     } else {
-                        // 서버가 200 OK를 보냈지만 body에 userId가 없을 경우 (서버 오류 가능성)
-                        Toast.makeText(this@LoginActivity, "로그인 성공했으나 유저 정보를 받지 못했습니다.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@LoginActivity, "유저 정보를 받지 못했습니다.", Toast.LENGTH_LONG).show()
                     }
-
                 } else {
-                    // 실패 (4xx, 5xx) -> 아이디/비번 틀림 또는 서버 비즈니스 예외
                     val errorMsg = response.errorBody()?.string() ?: "로그인 실패"
-                    Toast.makeText(this@LoginActivity, "실패: 아이디 또는 비밀번호를 확인하세요. (오류: $errorMsg)", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@LoginActivity, "아이디 또는 비밀번호를 확인하세요.", Toast.LENGTH_LONG).show()
                     Log.e("LoginError", errorMsg)
                 }
-
             } catch (e: Exception) {
-                // 네트워크 오류, Gson 파싱 오류 등 (주로 MalformedJsonException)
                 e.printStackTrace()
-                Toast.makeText(this@LoginActivity, "통신 오류 또는 응답 처리 실패: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@LoginActivity, "통신 오류: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
+    }
+
+    private fun moveToMain() {
+        val intent = Intent(this, MainActivity::class.java)
+        startActivity(intent)
+        finish()
     }
 }

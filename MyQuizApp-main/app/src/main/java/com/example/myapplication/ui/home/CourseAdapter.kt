@@ -14,7 +14,6 @@ class CourseAdapter(
     private val onStartClick: (CourseItem) -> Unit,
     private val onCardClick: (CourseItem) -> Unit,
     private val onReviewClick: (CourseItem) -> Unit,
-    // 🔥 추가: 변경 버튼 클릭 이벤트 콜백
     private val onChangeClick: () -> Unit
 ) : RecyclerView.Adapter<CourseAdapter.VH>() {
 
@@ -41,14 +40,15 @@ class CourseAdapter(
 
         holder.tvPercent.text = "${item.progressPercent}%"
         holder.circleProgress.setProgressCompat(item.progressPercent, true)
-        holder.tvSub.text = "오늘: ${(item.progressPercent * 0.6).toInt()} / 60 개"
+
+        // 🔥 [핵심 수정] 퍼센트 계산이 아니라, 실제 푼 문제 수(solvedCount)를 표시
+        holder.tvSub.text = "오늘: ${item.solvedCount} / 60 개"
 
         holder.btnStart.setOnClickListener {
             Log.d("DEBUG_APP", "어댑터: 학습하기 버튼 클릭됨! (${item.title})")
             onStartClick(item)
         }
 
-        // 🔥 추가: 과목 변경 버튼 클릭 시 콜백 호출
         holder.btnChangeCourse.setOnClickListener {
             onChangeClick()
         }

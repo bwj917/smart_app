@@ -1,19 +1,22 @@
 package com.example.myapplication.auth
 
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.os.CountDownTimer
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.View
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import com.example.myapplication.MainActivity // 🔥 추가
+import com.example.myapplication.MainActivity
 import com.example.myapplication.data.remote.RetrofitClient
 import com.example.myapplication.databinding.ActivitySignUpBinding
 import kotlinx.coroutines.launch
-import okhttp3.ResponseBody
-import retrofit2.Response
 
 class SignUpActivity : AppCompatActivity() {
 
@@ -28,21 +31,33 @@ class SignUpActivity : AppCompatActivity() {
         binding = ActivitySignUpBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        setupIdCheck()
-        setupEmailVerification()
-        setupSignUpButton()
+        setupStep1IdCheck()
+        setupStep2PwEnter()
+        setupStep3PwConfirm()
+        setupStep4Email()
+        setupStep6SignUp()
     }
 
-    private fun setupIdCheck() {
+    // [STEP 1] 아이디 입력 및 중복 확인
+    private fun setupStep1IdCheck() {
         binding.etId.setOnFocusChangeListener { _, hasFocus ->
             if (!hasFocus) {
                 val loginId = binding.etId.text.toString().trim()
                 if (loginId.isNotEmpty()) {
                     checkId(loginId)
-                } else {
-                    binding.tvIdCheckMessage.visibility = View.GONE
                 }
             }
+        }
+
+        binding.etId.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_NEXT || actionId == EditorInfo.IME_ACTION_DONE) {
+                val loginId = binding.etId.text.toString().trim()
+                if (loginId.isNotEmpty()) {
+                    checkId(loginId)
+                }
+                return@setOnEditorActionListener true
+            }
+            false
         }
     }
 
@@ -55,15 +70,23 @@ class SignUpActivity : AppCompatActivity() {
                     binding.tvIdCheckMessage.visibility = View.VISIBLE
                     if (isAvailable) {
                         binding.tvIdCheckMessage.text = "사용 가능한 아이디입니다."
-                        binding.tvIdCheckMessage.setTextColor(Color.BLUE) // Success color
+                        binding.tvIdCheckMessage.setTextColor(Color.BLUE)
                         isIdChecked = true
+
+                        // 🔥 다음 단계 노출 (애니메이션 자동 적용)
+                        if (binding.layoutStepPw.visibility == View.GONE) {
+                            binding.layoutStepPw.visibility = View.VISIBLE
+                            binding.etPw.requestFocus()
+                        } else {
+                            binding.etPw.requestFocus()
+                        }
                     } else {
                         binding.tvIdCheckMessage.text = "이미 사용 중인 아이디입니다."
-                        binding.tvIdCheckMessage.setTextColor(Color.RED) // Error color
+                        binding.tvIdCheckMessage.setTextColor(Color.RED)
                         isIdChecked = false
                     }
                 } else {
-                    showToast("아이디 중복 확인 실패") // <--- 66번째 줄 호출
+                    showToast("아이디 중복 확인 실패")
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -72,8 +95,59 @@ class SignUpActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupEmailVerification() {
-        // 인증번호 발송
+    // [STEP 2] 비밀번호 입력 후 엔터
+    private fun setupStep2PwEnter() {
+        binding.etPw.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_NEXT || actionId == EditorInfo.IME_ACTION_DONE) {
+                val pw = binding.etPw.text.toString()
+                if (pw.isNotEmpty()) {
+                    binding.layoutStepInfo.visibility = View.VISIBLE
+                    binding.etPwConfirm.requestFocus()
+                }
+                return@setOnEditorActionListener true
+            }
+            false
+        }
+    }
+
+    // [STEP 3] 비밀번호 확인
+    private fun setupStep3PwConfirm() {
+        val pwWatcher = object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                validatePasswordMatch()
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        }
+        binding.etPw.addTextChangedListener(pwWatcher)
+        binding.etPwConfirm.addTextChangedListener(pwWatcher)
+    }
+
+    private fun validatePasswordMatch() {
+        val pw = binding.etPw.text.toString()
+        val confirm = binding.etPwConfirm.text.toString()
+
+        if (pw.isNotEmpty() && confirm.isNotEmpty()) {
+            binding.tvPwConfirmMessage.visibility = View.VISIBLE
+            if (pw == confirm) {
+                binding.tvPwConfirmMessage.text = "비밀번호가 일치합니다."
+                binding.tvPwConfirmMessage.setTextColor(Color.BLUE)
+
+                if (binding.layoutStepEmail.visibility == View.GONE) {
+                    binding.layoutStepEmail.visibility = View.VISIBLE
+                    binding.etEmail.requestFocus()
+                }
+            } else {
+                binding.tvPwConfirmMessage.text = "비밀번호가 일치하지 않습니다."
+                binding.tvPwConfirmMessage.setTextColor(Color.RED)
+            }
+        } else {
+            binding.tvPwConfirmMessage.visibility = View.GONE
+        }
+    }
+
+    // [STEP 4 & 5] 이메일 인증
+    private fun setupStep4Email() {
         binding.btnSendCode.setOnClickListener {
             val email = binding.etEmail.text.toString().trim()
             if (email.isEmpty()) {
@@ -83,11 +157,9 @@ class SignUpActivity : AppCompatActivity() {
             sendEmailCode(email)
         }
 
-        // 인증번호 확인
         binding.btnVerifyCode.setOnClickListener {
             val email = binding.etEmail.text.toString().trim()
             val code = binding.etEmailCode.text.toString().trim()
-
             if (email.isEmpty() || code.isEmpty()) {
                 showToast("이메일과 인증번호를 입력하세요.")
                 return@setOnClickListener
@@ -98,38 +170,109 @@ class SignUpActivity : AppCompatActivity() {
 
     private fun sendEmailCode(email: String) {
         binding.btnSendCode.isEnabled = false
-        binding.btnSendCode.text = "발송 중..."
-        binding.tvEmailMessage.text = ""
-        binding.tvEmailMessage.visibility = View.GONE
+        binding.btnSendCode.text = "전송중"
+
+        hideKeyboard()
 
         lifecycleScope.launch {
             try {
-                val email = binding.etEmail.text.toString().trim()
                 val response = RetrofitClient.authApiService.sendEmailCode(email)
                 if (response.isSuccessful) {
-                    val msg = response.body()?.string() ?: "인증번호가 발송되었습니다."
-                    binding.tvEmailMessage.text = msg
+                    binding.tvEmailMessage.text = "인증번호가 발송되었습니다."
                     binding.tvEmailMessage.setTextColor(Color.BLUE)
                     binding.tvEmailMessage.visibility = View.VISIBLE
 
-                    // 타이머 시작 (3분 = 180초)
+                    binding.layoutStepVerify.visibility = View.VISIBLE
+                    binding.etEmailCode.requestFocus()
+
                     startTimer(180 * 1000L)
-                }
-                else {
-                    val errorMsg = response.errorBody()?.string() ?: "발송 실패"
-                    binding.tvEmailMessage.text = errorMsg
+                } else {
+                    binding.tvEmailMessage.text = "발송 실패"
                     binding.tvEmailMessage.setTextColor(Color.RED)
                     binding.tvEmailMessage.visibility = View.VISIBLE
                     binding.btnSendCode.isEnabled = true
-                    binding.btnSendCode.text = "인증번호 발송"
+                    binding.btnSendCode.text = "발송"
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                binding.tvEmailMessage.text = "오류 발생: ${e.message}"
-                binding.tvEmailMessage.setTextColor(Color.RED)
-                binding.tvEmailMessage.visibility = View.VISIBLE
                 binding.btnSendCode.isEnabled = true
-                binding.btnSendCode.text = "인증번호 발송"
+                binding.btnSendCode.text = "발송"
+            }
+        }
+    }
+
+    private fun verifyEmailCode(email: String, code: String) {
+        binding.btnVerifyCode.isEnabled = false
+        binding.btnVerifyCode.text = "확인중"
+
+        hideKeyboard()
+
+        lifecycleScope.launch {
+            try {
+                val response = RetrofitClient.authApiService.verifyEmailCode(email, code)
+                if (response.isSuccessful) {
+                    binding.tvVerificationMessage.text = "인증 성공"
+                    binding.tvVerificationMessage.setTextColor(Color.BLUE)
+                    binding.tvVerificationMessage.visibility = View.VISIBLE
+
+                    isEmailVerified = true
+                    timer?.cancel()
+                    binding.btnSendCode.text = "완료"
+
+                    binding.btnSignUp.visibility = View.VISIBLE
+
+                } else {
+                    binding.tvVerificationMessage.text = "인증 실패"
+                    binding.tvVerificationMessage.setTextColor(Color.RED)
+                    binding.tvVerificationMessage.visibility = View.VISIBLE
+                    binding.btnVerifyCode.isEnabled = true
+                    binding.btnVerifyCode.text = "확인"
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                binding.btnVerifyCode.isEnabled = true
+                binding.btnVerifyCode.text = "확인"
+            }
+        }
+    }
+
+    // [STEP 6] 회원가입 요청 (이름/전화번호 제외)
+    private fun setupStep6SignUp() {
+        binding.btnSignUp.setOnClickListener {
+            if (!isIdChecked) { showToast("아이디 중복 확인 필요"); return@setOnClickListener }
+            if (!isEmailVerified) { showToast("이메일 인증 필요"); return@setOnClickListener }
+
+            val userid = binding.etId.text.toString().trim()
+            val pw = binding.etPw.text.toString().trim()
+            val email = binding.etEmail.text.toString().trim()
+
+            // 🔥 [수정] 이름과 전화번호는 더 이상 받지 않으므로 빈 값으로 전송
+            val name = ""
+            val phone = ""
+
+            binding.btnSignUp.isEnabled = false
+
+            lifecycleScope.launch {
+                try {
+                    val response = RetrofitClient.authApiService.registerMember(userid, pw, name, email, phone)
+                    if (response.isSuccessful) {
+                        val authResponse = response.body()
+                        if (authResponse?.userId != null) {
+                            AuthManager.setLoggedIn(this@SignUpActivity, authResponse.userId, true)
+                            showToast("환영합니다! 회원가입 성공")
+                            val intent = Intent(this@SignUpActivity, MainActivity::class.java)
+                            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                            startActivity(intent)
+                            finish()
+                        }
+                    } else {
+                        showToast("가입 실패: ${response.errorBody()?.string()}")
+                        binding.btnSignUp.isEnabled = true
+                    }
+                } catch (e: Exception) {
+                    showToast("오류: ${e.message}")
+                    binding.btnSignUp.isEnabled = true
+                }
             }
         }
     }
@@ -138,150 +281,27 @@ class SignUpActivity : AppCompatActivity() {
         timer?.cancel()
         timer = object : CountDownTimer(millisInFuture, 1000) {
             override fun onTick(millisUntilFinished: Long) {
-                val minutes = millisUntilFinished / 1000 / 60
-                val seconds = millisUntilFinished / 1000 % 60
-                val timeString = String.format("%02d:%02d", minutes, seconds)
-                binding.btnSendCode.text = "재전송 ($timeString)"
-                binding.btnSendCode.isEnabled = false // 타이머 도중엔 비활성화 (JS 로직 참조)
+                val min = millisUntilFinished / 1000 / 60
+                val sec = millisUntilFinished / 1000 % 60
+                binding.btnSendCode.text = String.format("%02d:%02d", min, sec)
+                binding.btnSendCode.isEnabled = false
             }
-
             override fun onFinish() {
-                binding.btnSendCode.text = "인증번호 재전송"
+                binding.btnSendCode.text = "재전송"
                 binding.btnSendCode.isEnabled = true
-                binding.tvEmailMessage.text = "인증 시간이 만료되었습니다. 다시 시도해주세요."
-                binding.tvEmailMessage.setTextColor(Color.RED)
             }
         }.start()
     }
 
-    private fun verifyEmailCode(email: String, code: String) {
-        binding.btnVerifyCode.isEnabled = false
-        binding.btnVerifyCode.text = "확인 중..."
-
-        lifecycleScope.launch {
-            try {
-
-                val response = RetrofitClient.authApiService.verifyEmailCode(email, code)
-
-                if (response.isSuccessful) {
-                    val msg = response.body()?.string() ?: "인증 성공"
-                    binding.tvVerificationMessage.text = msg
-                    binding.tvVerificationMessage.setTextColor(Color.BLUE)
-                    binding.tvVerificationMessage.visibility = View.VISIBLE
-
-                    // 성공 처리
-                    isEmailVerified = true
-                    binding.etEmail.isEnabled = false
-                    binding.etEmailCode.isEnabled = false
-                    binding.btnSendCode.isEnabled = false
-                    binding.btnVerifyCode.isEnabled = false
-                    timer?.cancel()
-                    binding.btnSendCode.text = "인증 완료"
-
-                    checkSignUpButtonState()
-
-                } else {
-                    val errorMsg = response.errorBody()?.string() ?: "인증 실패"
-                    binding.tvVerificationMessage.text = errorMsg
-                    binding.tvVerificationMessage.setTextColor(Color.RED)
-                    binding.tvVerificationMessage.visibility = View.VISIBLE
-                    binding.btnVerifyCode.isEnabled = true
-                    binding.btnVerifyCode.text = "확인"
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                binding.tvVerificationMessage.text = "오류 발생: ${e.message}"
-                binding.tvVerificationMessage.setTextColor(Color.RED)
-                binding.tvVerificationMessage.visibility = View.VISIBLE
-                binding.btnVerifyCode.isEnabled = true
-                binding.btnVerifyCode.text = "확인"
-            }
-        }
-    }
-
-    private fun setupSignUpButton() {
-        binding.btnSignUp.setOnClickListener {
-            // 1. 유효성 검사
-            if (!isIdChecked) {
-                showToast("아이디 중복 확인이 필요합니다.")
-                return@setOnClickListener
-            }
-            if (!isEmailVerified) {
-                showToast("이메일 인증이 필요합니다.")
-                return@setOnClickListener
-            }
-
-            // 2. 입력값 가져오기
-            val userid = binding.etId.text.toString().trim()
-            val pw = binding.etPw.text.toString().trim()
-            val email = binding.etEmail.text.toString().trim()
-            val name = binding.etName.text.toString().trim()
-            val phone = binding.etPhone.text.toString().trim()
-            val pwConfirm = binding.etPwConfirm.text.toString().trim()
-
-            binding.btnSignUp.isEnabled = false // 중복 클릭 방지
-
-            if (userid.isEmpty() || pw.isEmpty() || pwConfirm.isEmpty() || name.isEmpty() || phone.isEmpty()) {
-                showToast("모든 정보를 입력해주세요.")
-                binding.btnSignUp.isEnabled = true
-                return@setOnClickListener
-            }
-
-            if (pw != pwConfirm) {
-                showToast("비밀번호가 일치하지 않습니다.")
-                binding.btnSignUp.isEnabled = true
-                return@setOnClickListener
-            }
-
-            // 3. 서버 요청
-            lifecycleScope.launch {
-                try {
-                    val response = RetrofitClient.authApiService.registerMember(
-                        userid, pw, name, email, phone
-                    )
-
-                    if (response.isSuccessful) {
-                        // 🔥 유저 ID를 AuthManager에 저장하고 바로 로그인 상태로 전환
-                        val authResponse = response.body()
-                        if (authResponse?.userId != null) {
-                            // 유저 ID와 함께 로그인 상태 저장
-                            AuthManager.setLoggedIn(this@SignUpActivity, true, authResponse.userId)
-
-                            showToast("회원가입 및 로그인 성공!")
-                            // 메인 화면으로 바로 이동
-                            val intent = Intent(this@SignUpActivity, MainActivity::class.java)
-                            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                            startActivity(intent)
-                            finish()
-
-                        } else {
-                            // 서버 응답에 userId가 없을 경우 (혹시 모를 상황 대비)
-                            showToast("회원가입 성공! 이제 로그인 해주세요.")
-                            finish()
-                        }
-
-                    } else {
-                        // 서버 에러 메시지 확인
-                        val errorMsg = response.errorBody()?.string() ?: "가입 실패"
-                        showToast("오류: $errorMsg")
-                        binding.btnSignUp.isEnabled = true
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    showToast("통신 오류: ${e.message}")
-                    binding.btnSignUp.isEnabled = true
-                }
-            }
-        }
-    }
-
-    private fun checkSignUpButtonState() {
-        // 필요 시 버튼 활성화/비활성화 로직 추가
-    }
-
-    // 🔥 showToast 함수는 클래스의 멤버 함수로 정의되어야 합니다. (위치 확인)
     private fun showToast(msg: String) {
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun hideKeyboard() {
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        currentFocus?.let {
+            imm.hideSoftInputFromWindow(it.windowToken, 0)
+        }
     }
 
     override fun onDestroy() {

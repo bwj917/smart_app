@@ -2,250 +2,289 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:background="@android:color/white"
-    android:padding="24dp"
+    android:background="#F5F5F5"
+    android:fillViewport="true"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
     <LinearLayout
         android:orientation="vertical"
-        android:gravity="center_horizontal"
+        android:gravity="center"
+        android:padding="24dp"
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-
-        <!-- 로고 -->
-        <ImageView
-            android:id="@+id/ivLogo"
-            android:src="@drawable/quit"
-            android:layout_width="110dp"
-            android:layout_height="110dp"
-            android:layout_marginTop="20dp"
-            android:contentDescription="@string/app_name" />
-
-        <!-- 타이틀 -->
-        <TextView
-            android:text="회원가입"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:textColor="#46338C"
-            android:layout_marginTop="12dp"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
-
-
-        <!-- 아이디 -->
-        <com.google.android.material.textfield.TextInputLayout
-            style="@style/CustomTextInput"
-            app:boxBackgroundColor="@android:color/white"
-            app:boxStrokeColor="#46338C"
-            android:layout_marginTop="20dp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etId"
-                android:hint="아이디"
-                android:textColor="#46338C"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <TextView
-            android:id="@+id/tvIdCheckMessage"
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textSize="12sp"
-            android:visibility="gone"
-            tools:text="사용 가능한 아이디입니다." />
+            app:cardCornerRadius="32dp"
+            app:strokeWidth="3dp"
+            app:strokeColor="#46338C"
+            app:cardElevation="8dp"
+            app:cardBackgroundColor="@android:color/white">
 
-
-        <!-- 비밀번호 -->
-        <com.google.android.material.textfield.TextInputLayout
-            style="@style/CustomTextInput"
-            app:boxBackgroundColor="@android:color/white"
-            app:boxStrokeColor="#46338C"
-            app:endIconMode="password_toggle"
-            android:layout_marginTop="16dp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etPw"
-                android:hint="비밀번호"
-                android:textColor="#46338C"
-                android:inputType="textPassword"
+            <LinearLayout
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:animateLayoutChanges="true"
+                android:padding="32dp"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
-        </com.google.android.material.textfield.TextInputLayout>
-
-
-        <!-- 비밀번호 확인 -->
-        <com.google.android.material.textfield.TextInputLayout
-            style="@style/CustomTextInput"
-            app:boxBackgroundColor="@android:color/white"
-            app:boxStrokeColor="#46338C"
-            app:endIconMode="password_toggle"
-            android:layout_marginTop="16dp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etPwConfirm"
-                android:hint="비밀번호 확인"
-                android:textColor="#46338C"
-                android:inputType="textPassword"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
-        </com.google.android.material.textfield.TextInputLayout>
-
-
-
-        <!-- 이름 -->
-        <com.google.android.material.textfield.TextInputLayout
-            style="@style/CustomTextInput"
-            app:boxBackgroundColor="@android:color/white"
-            app:boxStrokeColor="#46338C"
-            android:layout_marginTop="16dp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etName"
-                android:hint="이름"
-                android:textColor="#46338C"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
-        </com.google.android.material.textfield.TextInputLayout>
-
-
-
-        <!-- 전화번호 -->
-        <com.google.android.material.textfield.TextInputLayout
-            style="@style/CustomTextInput"
-            app:boxBackgroundColor="@android:color/white"
-            app:boxStrokeColor="#46338C"
-            android:layout_marginTop="16dp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etPhone"
-                android:hint="전화번호"
-                android:inputType="phone"
-                android:textColor="#46338C"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
-        </com.google.android.material.textfield.TextInputLayout>
-
-
-
-        <!-- 이메일 + 인증번호 발송 -->
-        <LinearLayout
-            android:orientation="horizontal"
-            android:layout_marginTop="16dp"
-            android:gravity="center_vertical"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <com.google.android.material.textfield.TextInputLayout
-                style="@style/CustomTextInput"
-                app:boxBackgroundColor="@android:color/white"
-                app:boxStrokeColor="#46338C"
-                android:layout_weight="1"
-                android:layout_width="0dp"
                 android:layout_height="wrap_content">
 
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/etEmail"
-                    android:hint="이메일"
+                <ImageView
+                    android:id="@+id/ivLogo"
+                    android:src="@drawable/quit"
+                    android:layout_width="70dp"
+                    android:layout_height="70dp"
+                    android:layout_marginBottom="16dp"
+                    android:contentDescription="@string/app_name" />
+
+                <TextView
+                    android:text="회원가입"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
                     android:textColor="#46338C"
-                    android:layout_width="match_parent"
+                    android:layout_marginBottom="30dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content" />
-            </com.google.android.material.textfield.TextInputLayout>
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnSendCode"
-                android:text="발송"
-                android:textStyle="bold"
-                android:textColor="#46338C"
-                app:cornerRadius="10dp"
-                app:backgroundTint="#EDE7FF"
-                android:layout_marginStart="8dp"
-                android:layout_width="80dp"
-                android:layout_height="50dp"/>
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/tvEmailMessage"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textSize="12sp"
-            android:visibility="gone"
-            tools:text="인증번호가 발송되었습니다." />
-
-
-
-        <!-- 인증번호 입력 + 확인 버튼 -->
-        <LinearLayout
-            android:orientation="horizontal"
-            android:layout_marginTop="12dp"
-            android:gravity="center_vertical"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <com.google.android.material.textfield.TextInputLayout
-                style="@style/CustomTextInput"
-                app:boxBackgroundColor="@android:color/white"
-                app:boxStrokeColor="#46338C"
-                android:layout_weight="1"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/etEmailCode"
-                    android:hint="인증번호"
-                    android:textColor="#46338C"
+                <LinearLayout
+                    android:id="@+id/layoutStepId"
+                    android:orientation="vertical"
+                    android:gravity="center"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content" />
-            </com.google.android.material.textfield.TextInputLayout>
+                    android:layout_height="wrap_content">
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnVerifyCode"
-                android:text="확인"
-                android:textStyle="bold"
-                android:textColor="#46338C"
-                app:cornerRadius="10dp"
-                app:backgroundTint="#EDE7FF"
-                android:layout_marginStart="8dp"
-                android:layout_width="80dp"
-                android:layout_height="50dp"/>
-        </LinearLayout>
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/CustomTextInput"
+                        app:boxBackgroundColor="@android:color/white"
+                        app:boxStrokeColor="#46338C"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
 
-        <TextView
-            android:id="@+id/tvVerificationMessage"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textSize="12sp"
-            android:visibility="gone"
-            tools:text="이메일 인증 완료!" />
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etId"
+                            android:hint="아이디"
+                            android:gravity="center"
+                            android:textColor="#46338C"
+                            android:inputType="text"
+                            android:maxLines="1"
+                            android:imeOptions="actionNext"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <TextView
+                        android:id="@+id/tvIdCheckMessage"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:textSize="13sp"
+                        android:gravity="center"
+                        android:visibility="gone"
+                        tools:text="사용 가능한 아이디입니다." />
+                </LinearLayout>
 
 
+                <LinearLayout
+                    android:id="@+id/layoutStepPw"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:visibility="gone"
+                    android:layout_marginTop="20dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
 
-        <!-- 회원가입 버튼 -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnSignUp"
-            android:text="회원가입"
-            android:textStyle="bold"
-            android:textColor="@android:color/white"
-            android:layout_marginTop="26dp"
-            app:cornerRadius="12dp"
-            app:backgroundTint="#57419D"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/CustomTextInput"
+                        app:boxBackgroundColor="@android:color/white"
+                        app:boxStrokeColor="#46338C"
+                        app:endIconMode="password_toggle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
 
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etPw"
+                            android:hint="비밀번호 (입력 후 엔터)"
+                            android:gravity="center"
+                            android:textColor="#46338C"
+                            android:inputType="textPassword"
+                            android:imeOptions="actionNext"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
+
+
+                <LinearLayout
+                    android:id="@+id/layoutStepInfo"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:visibility="gone"
+                    android:layout_marginTop="20dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/CustomTextInput"
+                        app:boxBackgroundColor="@android:color/white"
+                        app:boxStrokeColor="#46338C"
+                        app:endIconMode="password_toggle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etPwConfirm"
+                            android:hint="비밀번호 확인"
+                            android:gravity="center"
+                            android:textColor="#46338C"
+                            android:inputType="textPassword"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <TextView
+                        android:id="@+id/tvPwConfirmMessage"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:textSize="13sp"
+                        android:gravity="center"
+                        android:visibility="gone"
+                        tools:text="비밀번호가 일치합니다." />
+                </LinearLayout>
+
+
+                <LinearLayout
+                    android:id="@+id/layoutStepEmail"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:visibility="gone"
+                    android:layout_marginTop="20dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <LinearLayout
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/CustomTextInput"
+                            app:boxBackgroundColor="@android:color/white"
+                            app:boxStrokeColor="#46338C"
+                            android:layout_weight="1"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etEmail"
+                                android:hint="이메일"
+                                android:gravity="center"
+                                android:textColor="#46338C"
+                                android:inputType="textEmailAddress"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSendCode"
+                            android:text="발송"
+                            android:textStyle="bold"
+                            android:textColor="#46338C"
+                            app:cornerRadius="12dp"
+                            app:backgroundTint="#EDE7FF"
+                            android:layout_marginStart="12dp"
+                            android:layout_width="wrap_content"
+                            android:minWidth="80dp"
+                            android:layout_height="52dp"/>
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tvEmailMessage"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:textSize="13sp"
+                        android:gravity="center"
+                        android:visibility="gone"
+                        tools:text="인증번호가 발송되었습니다." />
+                </LinearLayout>
+
+
+                <LinearLayout
+                    android:id="@+id/layoutStepVerify"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:visibility="gone"
+                    android:layout_marginTop="16dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <LinearLayout
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/CustomTextInput"
+                            app:boxBackgroundColor="@android:color/white"
+                            app:boxStrokeColor="#46338C"
+                            android:layout_weight="1"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etEmailCode"
+                                android:hint="인증번호"
+                                android:gravity="center"
+                                android:textColor="#46338C"
+                                android:inputType="number"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnVerifyCode"
+                            android:text="확인"
+                            android:textStyle="bold"
+                            android:textColor="#46338C"
+                            app:cornerRadius="12dp"
+                            app:backgroundTint="#EDE7FF"
+                            android:layout_marginStart="12dp"
+                            android:layout_width="wrap_content"
+                            android:minWidth="80dp"
+                            android:layout_height="52dp"/>
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tvVerificationMessage"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:textSize="13sp"
+                        android:gravity="center"
+                        android:visibility="gone"
+                        tools:text="이메일 인증 완료!" />
+                </LinearLayout>
+
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSignUp"
+                    android:text="회원가입 완료"
+                    android:textStyle="bold"
+                    android:textSize="16sp"
+                    android:visibility="gone"
+                    android:textColor="@android:color/white"
+                    android:layout_marginTop="36dp"
+                    app:cornerRadius="12dp"
+                    app:backgroundTint="#57419D"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"/>
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
     </LinearLayout>
 </ScrollView>
