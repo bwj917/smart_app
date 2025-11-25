@@ -25,6 +25,7 @@ import androidx.core.content.ContextCompat
 import com.example.myapplication.R
 import com.example.myapplication.data.model.Problem
 import com.example.myapplication.ui.viewmodel.ProblemViewModel
+import com.example.myapplication.util.CharacterManager
 import com.example.myapplication.util.toProblemStatusText
 import com.example.myapplication.util.toRelativeReviewTime
 import com.google.android.material.button.MaterialButton
@@ -68,6 +69,8 @@ class QuizActivity : AppCompatActivity() {
     private var previousLevel = 0
     private var startTime: Long = 0L // 시작 시간
 
+    private var currentSkinIndex = 0
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_quiz)
@@ -80,6 +83,9 @@ class QuizActivity : AppCompatActivity() {
             finish()
             return
         }
+
+        val prefs = getSharedPreferences("UserSettings", Context.MODE_PRIVATE)
+        currentSkinIndex = prefs.getInt("SELECTED_CHARACTER_IDX", 0)
 
         bindViews()
         observeViewModel()
@@ -306,9 +312,12 @@ class QuizActivity : AppCompatActivity() {
         hideFeedbacks()
         problemViewModel.clearHintData()
 
-        ivJudge.setImageResource(R.drawable.quit2)
         btnSubmit.visibility = View.VISIBLE
         btnContinue.visibility = View.GONE
+
+        ivJudge.setImageResource(
+            CharacterManager.getImageRes(currentSkinIndex, CharacterManager.TYPE_CONFUSED)
+        )
     }
 
     private fun hideFeedbacks() {
@@ -361,12 +370,16 @@ class QuizActivity : AppCompatActivity() {
             builder.setSpan(ForegroundColorSpan(secondLineColor), start2, end2, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
 
             tvFeedback.text = builder
-            ivJudge.setImageResource(R.drawable.quit3)
+            ivJudge.setImageResource(
+                CharacterManager.getImageRes(currentSkinIndex, CharacterManager.TYPE_CORRECT)
+            )
 
         } else {
             tvFeedback.text = "아쉽다! 오답이에요."
             tvFeedback.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark))
-            ivJudge.setImageResource(R.drawable.quit4)
+            ivJudge.setImageResource(
+                CharacterManager.getImageRes(currentSkinIndex, CharacterManager.TYPE_WRONG)
+            )
 
             etAnswerInput.isEnabled = true
             btnSubmit.visibility = View.VISIBLE

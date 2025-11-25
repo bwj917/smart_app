@@ -4,6 +4,7 @@ import com.example.myapplication.data.model.HintResponse
 import com.example.myapplication.data.model.Problem
 import com.example.myapplication.data.model.SubmissionRequest
 import com.example.myapplication.data.model.SubmissionResponse
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -58,4 +59,17 @@ interface ProblemApiService {
         @Query("userId") userId: Long,
         @Query("amount") amount: Int
     ): Response<Map<String, Any>>
+
+    @POST("api/stats/buy-character")
+    suspend fun buyCharacter(
+        @Query("userId") userId: Long,
+        @Query("characterIdx") characterIdx: Int,
+        @Query("price") price: Int
+    ): Response<Map<String, Any>>
+
+    @POST("api/stats/equip-character")
+    suspend fun equipCharacter(
+        @Query("userId") userId: Long,
+        @Query("characterIdx") characterIdx: Int
+    ): Response<ResponseBody>
 }
