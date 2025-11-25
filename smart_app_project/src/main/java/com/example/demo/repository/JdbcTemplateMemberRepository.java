@@ -76,6 +76,7 @@ public class JdbcTemplateMemberRepository implements MemberRepository {
 
 
 
+    // 🔥 [수정] RowMapper: DB에서 데이터를 꺼내 자바 객체로 만드는 곳
     private RowMapper<Member> memberRowMapper() {
         return (rs, rowNum) -> {
             Member member = new Member();
@@ -87,10 +88,22 @@ public class JdbcTemplateMemberRepository implements MemberRepository {
             member.setPhone(rs.getString("PHONE"));
             member.setJoinDate(rs.getTimestamp("JOIN_DATE").toLocalDateTime());
 
-            // 🔥 [추가] DB에서 포인트 값 가져와서 매핑
+            // 포인트와 소유 목록
             member.setPoints(rs.getInt("POINTS"));
+            member.setOwnedCharacters(rs.getString("OWNED_CHARACTERS"));
+
+            // ⭐️ [핵심 추가] 이 줄이 없으면 장착 정보가 로드되지 않습니다!
+            // DB 컬럼명: EQUIPPED_CHARACTER_IDX
+            member.setEquippedCharacterIdx(rs.getInt("EQUIPPED_CHARACTER_IDX"));
+
             return member;
         };
+    }
+
+    @Override
+    public void updateEquippedCharacter(Long id, int characterIdx) {
+        String sql = "UPDATE USERS SET EQUIPPED_CHARACTER_IDX = ? WHERE ID = ?";
+        jdbcTemplate.update(sql, characterIdx, id);
     }
 
     // 🔥 [추가 1] ID(Long)로 회원 찾기 구현
@@ -123,5 +136,13 @@ public class JdbcTemplateMemberRepository implements MemberRepository {
             return Optional.empty();
         }
     }
+
+    @Override
+    public void updateMemberAfterPurchase(Long id, int newPoints, String newOwnedList) {
+        String sql = "UPDATE USERS SET POINTS = ?, OWNED_CHARACTERS = ? WHERE ID = ?";
+        jdbcTemplate.update(sql, newPoints, newOwnedList, id);
+    }
+
+
 
 }

@@ -12,8 +12,12 @@ public interface MemberRepository {
     Optional<Member> findByUserId(String userid);
     Optional<Member> findById(long id);
     Optional<Member> findByUserName(String name);
-    Optional<Member> findByEmail(String email); // ⭐️ 이메일로 회원을 찾는 메서드 추가
+    Optional<Member> findByEmail(String email);
     List<Member> findAll();
 
     void updatePoints(Long id, int newPoints);
+    void updateMemberAfterPurchase(Long id, int newPoints, String newOwnedList);
+
+    // 🔥 [신규 추가] 장착 캐릭터 변경 메서드 정의
+    void updateEquippedCharacter(Long id, int characterIdx);
 }

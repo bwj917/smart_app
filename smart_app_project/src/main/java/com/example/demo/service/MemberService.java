@@ -29,16 +29,13 @@ public class MemberService {
     }
 
     private void validateDuplicateMember(Member member) {
-// 1. ID 중복 확인 (기존 로직)
         memberRepository.findByUserId(member.getUserid())
                 .ifPresent(m -> {
                     throw new IllegalStateException("이미 사용 중인 아이디입니다.");
                 });
 
-        // 2. ⭐️ 이메일 중복 확인 추가 ⭐️
         memberRepository.findByEmail(member.getEmail())
                 .ifPresent(m -> {
-                    // 이메일 중복은 회원가입 시 반드시 확인해야 합니다.
                     throw new IllegalStateException("이미 사용 중인 이메일입니다.");
                 });
     }
@@ -49,37 +46,40 @@ public class MemberService {
 
     public Optional<Member> findOne(String userId) {
         return memberRepository.findByUserId(userId);
-
     }
 
-    // ID 찾기 기능을 위해 추가
     public Optional<Member> findByEmail(String email) {
         return memberRepository.findByEmail(email);
     }
 
     public Optional<Member> Login(String userId, String password) {
         Optional<Member> memberOptional = memberRepository.findByUserId(userId);
-
         return memberOptional.filter(member ->
                 passwordEncoder.matches(password, member.getPw())
         );
+    }
+
+    public Optional<Member> findOneById(Long userId) {
+        return memberRepository.findById(userId);
     }
 
     public int addPoints(Long userId, int amount) {
         Optional<Member> memberOptional = memberRepository.findById(userId);
         if (memberOptional.isPresent()) {
             Member member = memberOptional.get();
-            int currentPoints = member.getPoints();
-            int updatedPoints = currentPoints + amount;
-
-            memberRepository.updatePoints(userId, updatedPoints); // DB 업데이트
+            int updatedPoints = member.getPoints() + amount;
+            memberRepository.updatePoints(userId, updatedPoints);
             return updatedPoints;
         }
-        return -1; // 회원 없음 에러
+        return -1;
     }
 
-    // 🔥 [추가] ID(Long)로 회원 정보 가져오기 (포인트 조회용)
-    public Optional<Member> findOneById(Long userId) {
-        return memberRepository.findById(userId);
+    public void updatePurchase(Long userId, int newPoints, String newOwnedList) {
+        memberRepository.updateMemberAfterPurchase(userId, newPoints, newOwnedList);
+    }
+
+    // 🔥 [신규 추가] 장착 캐릭터 업데이트 연결
+    public void updateEquippedCharacter(Long userId, int characterIdx) {
+        memberRepository.updateEquippedCharacter(userId, characterIdx);
     }
 }

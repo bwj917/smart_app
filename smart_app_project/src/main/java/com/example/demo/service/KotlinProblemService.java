@@ -168,6 +168,12 @@ public class KotlinProblemService {
     // --- 통계 메서드 ---
 
     public int getTodaySolvedCount(Long userId, String courseId) {
+        // 🔥 [추가] "all" 요청이 들어오면 전체 합계를 반환하도록 분기 처리
+        if ("all".equalsIgnoreCase(courseId)) {
+            return getTodayTotalSolvedCount(userId);
+        }
+
+        // 기존 로직 (특정 과목만 카운트)
         LocalDateTime startLdt = LocalDateTime.now().with(java.time.LocalTime.MIN);
         LocalDateTime endLdt = LocalDateTime.now().with(java.time.LocalTime.MAX);
         return historyRepository.countTodayByCourse(

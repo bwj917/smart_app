@@ -16,4 +16,16 @@ public class Member {
     private String phone;
     private LocalDateTime joinDate;
     private int points;
+    private String ownedCharacters;
+
+    public int getEquippedCharacterIdx() {
+        return equippedCharacterIdx;
+    }
+
+    public void setEquippedCharacterIdx(int equippedCharacterIdx) {
+        this.equippedCharacterIdx = equippedCharacterIdx;
+    }
+
+    private int equippedCharacterIdx;
 }
+
