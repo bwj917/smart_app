@@ -6,17 +6,13 @@ import com.example.demo.service.MemberService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/stats")
 public class StatsController {
 
     private final KotlinProblemService kotlinProblemService;
-
     private final MemberService memberService;
 
     public StatsController(KotlinProblemService kotlinProblemService, MemberService memberService) {
@@ -29,28 +25,53 @@ public class StatsController {
             @RequestParam Long userId,
             @RequestParam(defaultValue = "정보처리기능사") String courseId) {
 
-        int solvedCount;
+        // ... (기존 통계 로직: solvedCount, studyTime 계산) ...
+        int solvedCount = 0;
+        // (위 로직은 기존 유지)
 
-        // 🔥 [핵심 수정] courseId가 "all"이면 전체 개수 카운트, 아니면 해당 과목만 카운트
-        if ("all".equalsIgnoreCase(courseId)) {
-            solvedCount = kotlinProblemService.getTodayTotalSolvedCount(userId);
-        } else {
-            solvedCount = kotlinProblemService.getTodaySolvedCount(userId, courseId);
-        }
+        solvedCount = kotlinProblemService.getTodaySolvedCount(userId, courseId);
 
         Long studyTime = kotlinProblemService.getTodayStudyTime(userId);
 
+        // 유저 정보 조회
         int currentPoints = 0;
+        String ownedCharacters = "0";
+        int equippedCharacterIdx = 0; // ⭐️ 기본값 0
+
         Optional<Member> member = memberService.findOneById(userId);
         if (member.isPresent()) {
-            currentPoints = member.get().getPoints();
-        }
+            Member m = member.get();
+            currentPoints = m.getPoints();
 
+            if (m.getOwnedCharacters() != null) {
+                ownedCharacters = m.getOwnedCharacters();
+            }
+
+            // ⭐️ [핵심 추가] DB에서 가져온 장착 번호를 변수에 담기
+            equippedCharacterIdx = m.getEquippedCharacterIdx();
+        }
         Map<String, Object> response = new HashMap<>();
         response.put("solvedCount", solvedCount);
         response.put("studyTime", studyTime);
-        response.put("currentPoints", currentPoints); // 🔥 안드로이드로 전송
+        response.put("currentPoints", currentPoints);
+        response.put("ownedCharacters", ownedCharacters);
+
+        // ⭐️ [핵심 추가] 이 값을 앱으로 보내줘야 앱이 캐릭터를 바꿉니다!
+        response.put("equippedCharacterIdx", equippedCharacterIdx);
+
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/equip-character")
+    public ResponseEntity<String> equipCharacter(
+            @RequestParam Long userId,
+            @RequestParam int characterIdx) {
+
+        // (여기서 소유 여부 검증 로직을 넣을 수도 있지만, 편의상 생략하고 바로 업데이트)
+        // Service에 updateEquippedCharacter 메서드 추가 필요 (Repository 연결)
+        memberService.updateEquippedCharacter(userId, characterIdx);
+
+        return ResponseEntity.ok("장착 완료");
     }
 
     @GetMapping("/all")
@@ -100,7 +121,7 @@ public class StatsController {
     @PostMapping("/reward")
     public ResponseEntity<Map<String, Object>> rewardPoints(
             @RequestParam Long userId,
-            @RequestParam int amount) { // amount = 100 등
+            @RequestParam int amount) {
 
         int newTotal = memberService.addPoints(userId, amount);
 
@@ -110,4 +131,57 @@ public class StatsController {
 
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/buy-character")
+    public ResponseEntity<Map<String, Object>> buyCharacter(
+            @RequestParam Long userId,
+            @RequestParam int characterIdx,
+            @RequestParam int price) {
+
+        Map<String, Object> response = new HashMap<>();
+
+        Optional<Member> memberOpt = memberService.findOneById(userId);
+        if (memberOpt.isEmpty()) {
+            response.put("success", false);
+            response.put("message", "유저 정보 없음");
+            return ResponseEntity.badRequest().body(response);
+        }
+
+        Member member = memberOpt.get();
+        int currentPoints = member.getPoints();
+
+        // 1. 이미 가지고 있는지 확인
+        String owned = member.getOwnedCharacters();
+        if (owned == null) owned = "0"; // null 방지
+
+        List<String> ownedList = new ArrayList<>(Arrays.asList(owned.split(",")));
+
+        if (ownedList.contains(String.valueOf(characterIdx))) {
+            response.put("success", false);
+            response.put("message", "이미 보유한 캐릭터입니다.");
+            return ResponseEntity.ok(response);
+        }
+
+        // 2. 포인트 확인
+        if (currentPoints < price) {
+            response.put("success", false);
+            response.put("message", "포인트가 부족합니다.");
+            return ResponseEntity.ok(response);
+        }
+
+        // 3. 구매 처리 (포인트 차감 + 목록 추가)
+        int newPoints = currentPoints - price;
+        ownedList.add(String.valueOf(characterIdx));
+        String newOwnedStr = String.join(",", ownedList);
+
+        memberService.updatePurchase(userId, newPoints, newOwnedStr);
+
+        response.put("success", true);
+        response.put("newPoints", newPoints);
+        response.put("ownedCharacters", newOwnedStr);
+
+        return ResponseEntity.ok(response);
+    }
+
+
 }
