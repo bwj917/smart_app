@@ -72,10 +72,17 @@ object AuthManager {
 
     fun logout(context: Context) {
         sessionUserId = null
+
+        // 1. 로그인 정보 삭제
         val pref = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        // 🔥 [수정] clear()를 쓰면 '아이디 저장'도 날아가므로, '로그인 유지' 키만 삭제합니다.
-        pref.edit()
-            .remove(KEY_USER_ID)
-            .apply()
+        pref.edit().remove(KEY_USER_ID).apply()
+
+        // 2. 🔥 [추가] 목표 설정 정보(GoalPrefs)도 싹 비워줍니다.
+        val goalPref = context.getSharedPreferences("GoalPrefs", Context.MODE_PRIVATE)
+        goalPref.edit().clear().apply()
+
+        // (참고) 만약 퀘스트 달성 정보 등 다른 유저 데이터도 Prefs에 저장했다면 여기서 같이 clear 해주세요.
+        // val questPref = context.getSharedPreferences("QuestPrefs", Context.MODE_PRIVATE)
+        // questPref.edit().clear().apply()
     }
 }

@@ -28,7 +28,12 @@ class QuestAdapter(
         val item = items[position]
 
         val statusText = " (${item.current}/${item.goal}${item.unit})"
-        holder.tvTitle.text = item.title + statusText
+        if(item.title == "일일 학습 30분"){
+            holder.tvTitle.text = item.title + statusText + " : 200포인트"
+        }else{
+            holder.tvTitle.text = item.title + statusText + " : 100포인트"
+
+        }
 
         // 🔥 [핵심] 완료 여부에 따라 전구 색상 변경
         if (item.isCompleted) {

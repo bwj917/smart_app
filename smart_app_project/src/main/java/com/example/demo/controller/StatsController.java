@@ -1,11 +1,14 @@
 package com.example.demo.controller;
 
 import com.example.demo.domain.Member;
+import com.example.demo.repository.UserGoalRepository;
 import com.example.demo.service.KotlinProblemService;
 import com.example.demo.service.MemberService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import com.example.demo.domain.UserGoal;
+import com.example.demo.repository.UserGoalRepository;
+import java.util.Optional;
 import java.util.*;
 
 @RestController
@@ -14,10 +17,14 @@ public class StatsController {
 
     private final KotlinProblemService kotlinProblemService;
     private final MemberService memberService;
+    private final UserGoalRepository userGoalRepository; // 🔥 추가
 
-    public StatsController(KotlinProblemService kotlinProblemService, MemberService memberService) {
+    public StatsController(KotlinProblemService kotlinProblemService,
+                           MemberService memberService,
+                           UserGoalRepository userGoalRepository) { // 👈 여기 추가
         this.kotlinProblemService = kotlinProblemService;
         this.memberService = memberService;
+        this.userGoalRepository = userGoalRepository;       // 👈 여기 초기화
     }
 
     @GetMapping("/today")
@@ -183,5 +190,36 @@ public class StatsController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/goal")
+    public ResponseEntity<String> updateGoal(
+            @RequestParam Long userId,
+            @RequestParam String courseName,
+            @RequestParam int goal) {
+
+        Optional<UserGoal> existing = userGoalRepository.findByUserIdAndCourseName(userId, courseName);
+
+        if (existing.isPresent()) {
+            UserGoal target = existing.get();
+            target.setGoalCount(goal);
+            userGoalRepository.save(target);
+        } else {
+            UserGoal newGoal = new UserGoal(userId, courseName, goal);
+            userGoalRepository.save(newGoal);
+        }
+        return ResponseEntity.ok("목표 설정 완료");
+    }
+
+    // 🔥 [신규 API] 내 목표 리스트 가져오기
+    // 앱에서 편하게 쓰기 위해 Map<과목명, 목표수> 형태로 반환
+    @GetMapping("/goals")
+    public ResponseEntity<Map<String, Integer>> getUserGoals(@RequestParam Long userId) {
+        List<UserGoal> list = userGoalRepository.findByUserId(userId);
+        Map<String, Integer> result = new HashMap<>();
+
+        for (UserGoal ug : list) {
+            result.put(ug.getCourseName(), ug.getGoalCount());
+        }
+        return ResponseEntity.ok(result);
+    }
 
 }

@@ -86,11 +86,9 @@ class SignUpActivity : AppCompatActivity() {
                         isIdChecked = false
                     }
                 } else {
-                    showToast("아이디 중복 확인 실패")
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                showToast("네트워크 오류: ${e.message}")
             }
         }
     }
@@ -151,7 +149,6 @@ class SignUpActivity : AppCompatActivity() {
         binding.btnSendCode.setOnClickListener {
             val email = binding.etEmail.text.toString().trim()
             if (email.isEmpty()) {
-                showToast("이메일을 입력하세요.")
                 return@setOnClickListener
             }
             sendEmailCode(email)
@@ -161,7 +158,6 @@ class SignUpActivity : AppCompatActivity() {
             val email = binding.etEmail.text.toString().trim()
             val code = binding.etEmailCode.text.toString().trim()
             if (email.isEmpty() || code.isEmpty()) {
-                showToast("이메일과 인증번호를 입력하세요.")
                 return@setOnClickListener
             }
             verifyEmailCode(email, code)
@@ -239,8 +235,8 @@ class SignUpActivity : AppCompatActivity() {
     // [STEP 6] 회원가입 요청 (이름/전화번호 제외)
     private fun setupStep6SignUp() {
         binding.btnSignUp.setOnClickListener {
-            if (!isIdChecked) { showToast("아이디 중복 확인 필요"); return@setOnClickListener }
-            if (!isEmailVerified) { showToast("이메일 인증 필요"); return@setOnClickListener }
+            if (!isIdChecked) { return@setOnClickListener }
+            if (!isEmailVerified) {return@setOnClickListener }
 
             val userid = binding.etId.text.toString().trim()
             val pw = binding.etPw.text.toString().trim()
@@ -259,7 +255,6 @@ class SignUpActivity : AppCompatActivity() {
                         val authResponse = response.body()
                         if (authResponse?.userId != null) {
                             AuthManager.setLoggedIn(this@SignUpActivity, authResponse.userId, true)
-                            showToast("환영합니다! 회원가입 성공")
                             val intent = Intent(this@SignUpActivity, MainActivity::class.java)
                             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                             startActivity(intent)

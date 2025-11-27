@@ -89,28 +89,48 @@
             app:cardUseCompatPadding="true"
             app:cardCornerRadius="12dp">
 
-            <LinearLayout
+            <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
                 android:padding="12dp">
 
                 <ImageView
                     android:id="@+id/ivJudge"
                     android:layout_width="56dp"
                     android:layout_height="56dp"
-                    android:src="@drawable/quit2" />
+                    android:src="@drawable/quit2"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
+
+                <CheckBox
+                    android:id="@+id/btnScrap"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:button="@null"
+                    android:background="@drawable/selector_star"
+                    android:checked="false"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
 
                 <TextView
                     android:id="@+id/tvQuestion"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:layout_marginStart="12dp"
+                    android:layout_marginEnd="8dp"
                     android:text="로딩 중..."
                     android:textColor="#222222"
-                    android:textSize="16sp" />
-            </LinearLayout>
+                    android:textSize="16sp"
+                    app:layout_constraintStart_toEndOf="@id/ivJudge"
+                    app:layout_constraintEnd_toStartOf="@id/btnScrap"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
         </com.google.android.material.card.MaterialCardView>
 
         <TextView
@@ -200,8 +220,6 @@
                 android:textColor="@color/brand_primary"
                 android:textStyle="bold" />
         </LinearLayout>
-
-
 
     </LinearLayout>
 

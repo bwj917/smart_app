@@ -56,4 +56,26 @@ public class KotlinController {
         String hint = kotlinProblemService.requestHint(problemId, userId, hintCount); // 👈 서비스로 전달
         return new HintResponse(hint);
     }
+
+    @GetMapping("/frequent-wrong")
+    public List<ProblemResponseDto> getFrequentWrongProblems(
+            @RequestParam Long userId,
+            @RequestParam(defaultValue = "전체") String courseId) { // 🔥 파라미터 추가
+        return kotlinProblemService.getFrequentWrongProblems(userId, courseId);
+    }
+
+    @PostMapping("/scrap")
+    public ResponseEntity<Boolean> scrapProblem(
+            @RequestParam Long userId,
+            @RequestParam Long problemId) {
+        boolean isScrapped = kotlinProblemService.toggleScrap(userId, problemId);
+        return ResponseEntity.ok(isScrapped);
+    }
+
+    @GetMapping("/scrapped")
+    public List<ProblemResponseDto> getScrappedProblems(
+            @RequestParam Long userId,
+            @RequestParam(defaultValue = "전체") String courseId) {
+        return kotlinProblemService.getScrappedProblems(userId, courseId);
+    }
 }

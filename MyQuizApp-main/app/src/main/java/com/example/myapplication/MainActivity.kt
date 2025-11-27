@@ -3,6 +3,7 @@ package com.example.myapplication
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.fragment.app.Fragment
@@ -12,7 +13,8 @@ import com.example.myapplication.auth.SignUpActivity
 import com.example.myapplication.ui.home.HomeFragment
 import com.example.myapplication.ui.stats.StatsFragment
 import com.example.myapplication.ui.info.InfoFragment
-import com.example.myapplication.ui.wrongnote.WrongNoteActivity
+import com.example.myapplication.ui.wrongnote.MyNoteActivity
+import com.example.myapplication.ui.wrongnote.MyNoteAdapter
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.navigation.NavigationView
@@ -26,7 +28,6 @@ class MainActivity : AppCompatActivity() {
     private val homeFragment by lazy { HomeFragment() }
     private val statsFragment by lazy { StatsFragment() }
     private val infoFragment by lazy { InfoFragment() }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -68,14 +69,10 @@ class MainActivity : AppCompatActivity() {
         updateSideMenu()
         navView.setNavigationItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
-                R.id.action_login -> startActivity(Intent(this, LoginActivity::class.java))
                 R.id.action_logout -> logoutUser()
                 R.id.action_monthly_study -> {
-                    showFragment(statsFragment)
                     bottomNav.selectedItemId = R.id.nav_study
                 }
-                R.id.action_wrong_notes -> startActivity(Intent(this, WrongNoteActivity::class.java))
-                R.id.action_signup -> startActivity(Intent(this, SignUpActivity::class.java))
             }
             drawer.closeDrawer(GravityCompat.START)
             true
@@ -108,8 +105,6 @@ class MainActivity : AppCompatActivity() {
     private fun updateSideMenu() {
         val isLoggedIn = AuthManager.isLoggedIn(this)
         val menu = navView.menu
-        menu.findItem(R.id.action_login)?.isVisible = !isLoggedIn
-        menu.findItem(R.id.action_signup)?.isVisible = !isLoggedIn
         menu.findItem(R.id.action_logout)?.isVisible = isLoggedIn
     }
 

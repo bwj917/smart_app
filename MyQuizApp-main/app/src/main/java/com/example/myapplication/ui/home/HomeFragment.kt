@@ -52,7 +52,6 @@ class HomeFragment : Fragment() {
                 val oldItem = courses[0]
                 courses[0] = oldItem.copy(title = selectedName)
                 courseAdapter.updateItems(courses.toList())
-                Toast.makeText(requireContext(), "$selectedName(으)로 변경!", Toast.LENGTH_SHORT).show()
                 updateDailyProgress()
             }
         }
@@ -259,6 +258,7 @@ class HomeFragment : Fragment() {
             try {
                 val currentCourseTitle = courses[0].title
                 val response = RetrofitClient.problemApiService.getTenProblems(currentUserId, currentCourseTitle)
+
                 if (response.isSuccessful) {
                     val problemList = response.body() ?: emptyList()
                     if (problemList.isEmpty()) {
@@ -266,6 +266,7 @@ class HomeFragment : Fragment() {
                         return@launch
                     }
 
+                    // --- [기존 로직 유지] 문제 유형 분석 (복습/재도전/새문제) ---
                     val now = System.currentTimeMillis()
                     var newCount = 0
                     var retryCount = 0
@@ -285,20 +286,45 @@ class HomeFragment : Fragment() {
                     if (reviewCount > 0) sb.append("🔴 복습 : ${reviewCount}문제\n")
                     if (retryCount > 0) sb.append("🟡 재도전 : ${retryCount}문제\n")
                     if (newCount > 0) sb.append("🔵 새 문제: ${newCount}문제")
+                    // -------------------------------------------------------
 
-                    MaterialAlertDialogBuilder(requireContext())
-                        .setTitle("오늘의 학습 구성")
-                        .setMessage(sb.toString())
-                        .setNegativeButton("나중에") { d, _ -> d.dismiss() }
-                        .setPositiveButton("학습 시작") { d, _ ->
-                            d.dismiss()
-                            val intent = Intent(requireContext(), QuizActivity::class.java)
-                            intent.putExtra(CourseIds.EXTRA_COURSE_ID, courses[0].title)
-                            intent.putExtra(CourseIds.EXTRA_USER_ID, currentUserId)
-                            intent.putExtra("RESET_PROGRESS", true)
-                            startActivity(intent)
-                        }
-                        .show()
+                    // 🔥 [수정] 커스텀 레이아웃(XML) 적용 시작
+                    val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_home_study, null)
+
+                    // 뷰 바인딩
+                    val btnStart = dialogView.findViewById<View>(R.id.btnStartStudy)
+                    val btnLater = dialogView.findViewById<View>(R.id.btnStudyLater)
+                    val tvMessage = dialogView.findViewById<android.widget.TextView>(R.id.tvDialogMessage)
+
+                    // 분석한 문제 정보(sb)를 팝업 메시지에 넣기
+                    tvMessage.text = sb.toString()
+
+                    val dialog = MaterialAlertDialogBuilder(requireContext())
+                        .setView(dialogView)
+                        .setCancelable(false) // 배경 터치 막기 (선택사항)
+                        .create()
+
+                    // [버튼 1] 학습 시작하기 클릭
+                    btnStart.setOnClickListener {
+                        dialog.dismiss()
+                        val intent = Intent(requireContext(), QuizActivity::class.java)
+                        intent.putExtra(CourseIds.EXTRA_COURSE_ID, courses[0].title)
+                        intent.putExtra(CourseIds.EXTRA_USER_ID, currentUserId)
+                        intent.putExtra("RESET_PROGRESS", true)
+                        startActivity(intent)
+                    }
+
+                    // [버튼 2] 나중에 하기 클릭
+                    btnLater.setOnClickListener {
+                        dialog.dismiss()
+                    }
+
+                    // 배경 투명 처리 (둥근 모서리 적용 필수)
+                    dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+
+                    dialog.show()
+                    // 🔥 [수정 끝]
+
                 } else {
                     Toast.makeText(requireContext(), "정보 로드 실패", Toast.LENGTH_SHORT).show()
                 }
@@ -313,18 +339,47 @@ class HomeFragment : Fragment() {
         val currentUserId = AuthManager.getUserId(requireContext()) ?: return
 
         lifecycleScope.launch {
+            try{
+            var goalMap = emptyMap<String, Int>()
             try {
-                // 1. 코스 진행률 갱신
+                val goalRes = RetrofitClient.problemApiService.getUserGoals(currentUserId)
+                if (goalRes.isSuccessful) {
+                    goalMap = goalRes.body() ?: emptyMap()
+                    val prefs =
+                        requireContext().getSharedPreferences("GoalPrefs", Context.MODE_PRIVATE)
+                    val editor = prefs.edit()
+                    goalMap.forEach { (course, goal) ->
+                        editor.putInt("GOAL_$course", goal)
+                    }
+                    editor.apply()
+                }
+            } catch (e: Exception) {
+                Log.e("Home", "목표 로드 실패 (기본값 사용)", e)
+            }
+
                 val newCourses = courses.toMutableList()
+
+
                 for (i in newCourses.indices) {
+
                     val course = newCourses[i]
+
+                    val savedGoal = goalMap[course.title] ?: 60
+
                     val response = RetrofitClient.problemApiService.getTodayStats(currentUserId, course.title)
+
                     if (response.isSuccessful) {
                         val body = response.body()
                         val count = (body?.get("solvedCount") as? Number)?.toInt() ?: 0
-                        val goal = 60
-                        val percent = if (goal > 0) (count.toDouble() / goal * 100).toInt() else 0
-                        newCourses[i] = course.copy(progressPercent = percent.coerceIn(0, 100), solvedCount = count)
+
+                        // 목표(savedGoal)를 기준으로 퍼센트 계산
+                        val percent = if (savedGoal > 0) (count.toDouble() / savedGoal * 100).toInt() else 0
+
+                        newCourses[i] = course.copy(
+                            progressPercent = percent.coerceAtLeast(0),
+                            solvedCount = count,
+                            goal = savedGoal // 🔥 CourseItem의 goal 변수에 반영
+                        )
                     }
                 }
                 courses = newCourses
@@ -350,7 +405,7 @@ class HomeFragment : Fragment() {
                     val isTimeDone = totalTimeMin >= goalTime
                     val isCountDone = totalCount >= goalCount
 
-                    checkAndReward(currentUserId, "QUEST_TIME", isTimeDone, 100, "일일 학습 완료! 100P")
+                    checkAndReward(currentUserId, "QUEST_TIME", isTimeDone, 200, "일일 학습 완료! 200P")
                     checkAndReward(currentUserId, "QUEST_COUNT", isCountDone, 100, "문제 풀이 완료! 100P")
 
                     val newQuests = listOf(
@@ -379,13 +434,23 @@ class HomeFragment : Fragment() {
             val response = RetrofitClient.problemApiService.rewardPoints(userId, amount)
             if (response.isSuccessful) {
                 prefs.edit().putBoolean(prefKey, true).apply()
-                Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
                 val currentText = binding.tvUserPoints.text.toString().replace(Regex("[^0-9]"), "")
                 val currentVal = currentText.toIntOrNull() ?: 0
                 binding.tvUserPoints.text = "포인트 ${currentVal + amount}"
             }
         }
     }
+
+    override fun onHiddenChanged(hidden: Boolean) {
+        super.onHiddenChanged(hidden)
+
+        // hidden이 false = 화면이 다시 보임
+        if (!hidden) {
+            updateDailyProgress() // 목표 개수 및 진행률 새로고침
+        }
+    }
+
+
 
     override fun onResume() {
         super.onResume()

@@ -10,6 +10,7 @@ import com.example.demo.repository.SubmissionHistoryRepository;
 import com.example.demo.repository.UserProblemStatsRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -321,5 +322,52 @@ public class KotlinProblemService {
                 Date.from(start.atZone(ZoneId.systemDefault()).toInstant()),
                 Date.from(end.atZone(ZoneId.systemDefault()).toInstant()));
         return time != null ? time : 0L;
+    }
+
+    public List<ProblemResponseDto> getFrequentWrongProblems(Long userId, String courseId) {
+        List<UserProblemStats> statsList;
+
+        // "전체"이거나 값이 없으면 기존 로직 실행
+        if (courseId == null || courseId.equals("전체") || courseId.equals("all")) {
+            statsList = statsRepository.findFrequentWrongProblems(userId, PageRequest.of(0, 20));
+        } else {
+            // 특정 과목이면 신규 쿼리 실행
+            statsList = statsRepository.findFrequentWrongProblemsByCourse(userId, courseId, PageRequest.of(0, 20));
+        }
+
+        List<ProblemResponseDto> response = new ArrayList<>();
+        for (UserProblemStats stat : statsList) {
+            response.add(new ProblemResponseDto(stat.getProblem(), stat));
+        }
+        return response;
+    }
+
+    @Transactional
+    public boolean toggleScrap(Long userId, Long problemId) {
+        Problem problem = findProblem(problemId);
+        UserProblemStats stats = findOrCreateStats(userId, problem);
+
+        // 상태 반전 (True <-> False)
+        stats.setScrapped(!stats.isScrapped());
+        statsRepository.save(stats);
+
+        return stats.isScrapped(); // 변경된 상태 반환
+    }
+
+    public List<ProblemResponseDto> getScrappedProblems(Long userId, String courseId) {
+        List<UserProblemStats> statsList;
+
+        if (courseId == null || courseId.equals("전체") || courseId.equals("all")) {
+            // 최대 50개까지 조회
+            statsList = statsRepository.findScrappedProblems(userId, PageRequest.of(0, 50));
+        } else {
+            statsList = statsRepository.findScrappedProblemsByCourse(userId, courseId, PageRequest.of(0, 50));
+        }
+
+        List<ProblemResponseDto> response = new ArrayList<>();
+        for (UserProblemStats stat : statsList) {
+            response.add(new ProblemResponseDto(stat.getProblem(), stat));
+        }
+        return response;
     }
 }

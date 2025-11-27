@@ -51,6 +51,11 @@ public class UserProblemStats {
     @Column(name = "LAST_SOLVED_AT")
     private Date lastSolvedAt; // 마지막으로 정답을 맞힌 시간
 
+
+
+    @Column(name = "IS_SCRAPPED")
+    private Boolean isScrapped = false;
+
     // --- 생성자 ---
     public UserProblemStats() {}
 
@@ -130,4 +135,13 @@ public class UserProblemStats {
     public void setLastSolvedAt(Date lastSolvedAt) {
         this.lastSolvedAt = lastSolvedAt;
     }
+
+    public boolean isScrapped() {
+        return isScrapped != null && isScrapped;
+    }
+
+    public void setScrapped(Boolean scrapped) {
+        this.isScrapped = scrapped;
+    }
+
 }

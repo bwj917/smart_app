@@ -41,7 +41,7 @@ class CourseAdapter(
         holder.tvPercent.text = "${item.progressPercent}%"
         holder.circleProgress.setProgressCompat(item.progressPercent, true)
 
-        // 🔥 [핵심 수정] 퍼센트 역계산 대신 실제 개수(solvedCount)를 표시
+        // 🔥 [수정] GoalPrefs에서 가져온 목표 개수와 실제 푼 개수를 표시
         holder.tvSub.text = "오늘: ${item.solvedCount} / ${item.goal} 개"
 
         holder.btnStart.setOnClickListener {

@@ -17,6 +17,7 @@ public class Member {
     private LocalDateTime joinDate;
     private int points;
     private String ownedCharacters;
+    private int equippedCharacterIdx;
 
     public int getEquippedCharacterIdx() {
         return equippedCharacterIdx;
@@ -26,6 +27,5 @@ public class Member {
         this.equippedCharacterIdx = equippedCharacterIdx;
     }
 
-    private int equippedCharacterIdx;
 }
 

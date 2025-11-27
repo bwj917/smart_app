@@ -72,4 +72,35 @@ interface ProblemApiService {
         @Query("userId") userId: Long,
         @Query("characterIdx") characterIdx: Int
     ): Response<ResponseBody>
+
+    @POST("api/stats/goal")
+    suspend fun updateGoal(
+        @Query("userId") userId: Long,
+        @Query("courseName") courseName: String,
+        @Query("goal") goal: Int
+    ): Response<String>
+
+    // 🔥 [신규] 내 목표 가져오기 API
+    @GET("api/stats/goals")
+    suspend fun getUserGoals(
+        @Query("userId") userId: Long
+    ): Response<Map<String, Int>>
+
+    @GET("api/problems/frequent-wrong")
+    suspend fun getFrequentWrongProblems(
+        @Query("userId") userId: Long,
+        @Query("courseId") courseId: String // 🔥 파라미터 추가
+    ): Response<List<Problem>>
+
+    @POST("api/problems/scrap")
+    suspend fun scrapProblem(
+        @Query("userId") userId: Long,
+        @Query("problemId") problemId: Long
+    ): Response<Boolean>
+
+    @GET("api/problems/scrapped")
+    suspend fun getScrappedProblems(
+        @Query("userId") userId: Long,
+        @Query("courseId") courseId: String
+    ): Response<List<Problem>>
 }

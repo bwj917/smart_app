@@ -8,6 +8,10 @@ data class Problem(
     val answer: String,
 
     val problemLevel: Int?, // 레벨은 없을 수 있으므로 Nullable 처리
-    val nextReviewTime: Date?
-)
+    val nextReviewTime: Date?,
+
+    val totalAttempts: Int? = 0,
+    val isScrapped: Boolean = false
+
+    )
 

@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import org.springframework.data.domain.Pageable;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
@@ -20,7 +21,8 @@ public interface UserProblemStatsRepository extends JpaRepository<UserProblemSta
     List<UserProblemStats> findByUserId(Long userId);
 
     @Query("SELECT s FROM UserProblemStats s JOIN s.problem p " +
-            "WHERE s.userId = :userId AND p.courseId = :courseId AND s.nextReviewTime < :now " +
+            "WHERE s.userId = :userId AND p.courseId = :courseId " +
+            "AND (s.nextReviewTime < :now OR s.nextReviewTime IS NULL) " +
             "ORDER BY s.nextReviewTime DESC")
     List<UserProblemStats> findReviewProblems(@Param("userId") Long userId,
                                               @Param("courseId") String courseId,
@@ -37,4 +39,28 @@ public interface UserProblemStatsRepository extends JpaRepository<UserProblemSta
             "WHERE s.userId = :userId AND p.courseId = :courseId")
     List<Long> findSolvedProblemIds(@Param("userId") Long userId, @Param("courseId") String courseId);
 
+    // 조건: 최소 2번 이상 시도한 문제 중, 많이 푼 순서대로 정렬
+    @Query("SELECT s FROM UserProblemStats s JOIN FETCH s.problem p " +
+            "WHERE s.userId = :userId AND s.totalAttempts >= 2 " +
+            "ORDER BY s.totalAttempts DESC")
+    List<UserProblemStats> findFrequentWrongProblems(@Param("userId") Long userId, Pageable pageable);
+
+    @Query("SELECT s FROM UserProblemStats s JOIN FETCH s.problem p " +
+            "WHERE s.userId = :userId AND p.courseId = :courseId AND s.totalAttempts >= 2 " +
+            "ORDER BY s.totalAttempts DESC")
+    List<UserProblemStats> findFrequentWrongProblemsByCourse(@Param("userId") Long userId,
+                                                             @Param("courseId") String courseId,
+                                                             Pageable pageable);
+
+    @Query("SELECT s FROM UserProblemStats s JOIN FETCH s.problem p " +
+            "WHERE s.userId = :userId AND s.isScrapped = true " +
+            "ORDER BY s.id DESC")
+    List<UserProblemStats> findScrappedProblems(@Param("userId") Long userId, Pageable pageable);
+
+    @Query("SELECT s FROM UserProblemStats s JOIN FETCH s.problem p " +
+            "WHERE s.userId = :userId AND p.courseId = :courseId AND s.isScrapped = true " +
+            "ORDER BY s.id DESC")
+    List<UserProblemStats> findScrappedProblemsByCourse(@Param("userId") Long userId,
+                                                        @Param("courseId") String courseId,
+                                                        Pageable pageable);
 }

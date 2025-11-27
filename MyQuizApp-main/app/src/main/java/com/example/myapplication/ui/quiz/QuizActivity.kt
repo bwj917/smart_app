@@ -14,6 +14,7 @@ import android.util.Log
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
@@ -22,8 +23,10 @@ import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import com.example.myapplication.R
 import com.example.myapplication.data.model.Problem
+import com.example.myapplication.data.remote.RetrofitClient
 import com.example.myapplication.ui.viewmodel.ProblemViewModel
 import com.example.myapplication.util.CharacterManager
 import com.example.myapplication.util.toProblemStatusText
@@ -31,6 +34,7 @@ import com.example.myapplication.util.toRelativeReviewTime
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.progressindicator.LinearProgressIndicator
+import kotlinx.coroutines.launch
 
 class QuizActivity : AppCompatActivity() {
 
@@ -54,6 +58,7 @@ class QuizActivity : AppCompatActivity() {
     private lateinit var ivJudge: ImageView
 
     private lateinit var btnHint: MaterialButton
+    private lateinit var btnScrap: CheckBox
 
     private lateinit var tvLevel: TextView
     private lateinit var tvProblemStatus: TextView
@@ -70,6 +75,7 @@ class QuizActivity : AppCompatActivity() {
     private var startTime: Long = 0L // 시작 시간
 
     private var currentSkinIndex = 0
+    private var currentProblemId: Long? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -172,9 +178,20 @@ class QuizActivity : AppCompatActivity() {
         btnHint = findViewById(R.id.btnHint)
         tvProblemStatus = findViewById(R.id.tvProblemStatus)
         tvLevel = findViewById(R.id.tvLevel)
+        btnScrap = findViewById(R.id.btnScrap)
 
         bindHintClick()
         bindSubmitClick()
+
+        btnScrap.setOnClickListener {
+            val isChecked = btnScrap.isChecked
+            if (currentUserId != 0L && currentProblemId != null) {
+                toggleScrap(currentUserId, currentProblemId!!)
+            } else {
+                btnScrap.isChecked = !isChecked
+                Toast.makeText(this, "문제를 저장할 수 없습니다.", Toast.LENGTH_SHORT).show()
+            }
+        }
 
         btnContinue.setOnClickListener { goToNextProblem() }
 
@@ -189,6 +206,25 @@ class QuizActivity : AppCompatActivity() {
                 return@setOnEditorActionListener true
             }
             return@setOnEditorActionListener false
+        }
+    }
+
+    private fun toggleScrap(userId: Long, problemId: Long) {
+        lifecycleScope.launch {
+            try {
+                val response = RetrofitClient.problemApiService.scrapProblem(userId, problemId)
+                if (response.isSuccessful) {
+                    val isScrapped = response.body() == true
+                    actualProblems = actualProblems.map {
+                        if (it.problemId == problemId) it.copy(isScrapped = isScrapped) else it
+                    }
+                } else {
+                    btnScrap.isChecked = !btnScrap.isChecked
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                btnScrap.isChecked = !btnScrap.isChecked
+            }
         }
     }
 
@@ -248,13 +284,17 @@ class QuizActivity : AppCompatActivity() {
         }
 
         btnSubmit.isEnabled = false
-        etAnswerInput.isEnabled = false
+        // 🔥 [수정] 여기서 입력창을 끄지 않습니다. (포커스가 튀는 것 방지)
+        // etAnswerInput.isEnabled = false
 
         problemViewModel.submitAnswer(currentProblem.problemId, currentUserId, userAnswer, hintCount, durationSeconds)
     }
 
     private fun renderQuestion() {
         val item = actualProblems.getOrNull(current - 1) ?: return
+
+        currentProblemId = item.problemId
+        btnScrap.isChecked = item.isScrapped
 
         tvProblemStatus.text = item.toProblemStatusText()
         previousLevel = item.problemLevel ?: 0
@@ -291,7 +331,7 @@ class QuizActivity : AppCompatActivity() {
             }
         }
 
-        startTime = System.currentTimeMillis() // 시간 측정 시작
+        startTime = System.currentTimeMillis()
 
         btnHint.isEnabled = true
         currentHintText = null
@@ -318,6 +358,9 @@ class QuizActivity : AppCompatActivity() {
         ivJudge.setImageResource(
             CharacterManager.getImageRes(currentSkinIndex, CharacterManager.TYPE_CONFUSED)
         )
+
+        // 🔥 [추가] 새 문제 시작 시 입력창에 포커스 주기
+        etAnswerInput.requestFocus()
     }
 
     private fun hideFeedbacks() {
@@ -374,6 +417,9 @@ class QuizActivity : AppCompatActivity() {
                 CharacterManager.getImageRes(currentSkinIndex, CharacterManager.TYPE_CORRECT)
             )
 
+            // 🔥 [핵심] 정답일 때: 다음 문제 버튼으로 포커스 이동!
+            btnContinue.requestFocus()
+
         } else {
             tvFeedback.text = "아쉽다! 오답이에요."
             tvFeedback.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark))
@@ -381,7 +427,11 @@ class QuizActivity : AppCompatActivity() {
                 CharacterManager.getImageRes(currentSkinIndex, CharacterManager.TYPE_WRONG)
             )
 
+            // 🔥 [핵심] 오답일 때: 다시 풀 수 있게 입력창 활성화 & 포커스 유지
             etAnswerInput.isEnabled = true
+            etAnswerInput.requestFocus()
+
+            btnSubmit.isEnabled = true // 버튼 다시 활성화
             btnSubmit.visibility = View.VISIBLE
             btnContinue.visibility = View.GONE
             answered = false
@@ -402,7 +452,7 @@ class QuizActivity : AppCompatActivity() {
     private fun showExitConfirmDialog() {
         MaterialAlertDialogBuilder(this)
             .setTitle("퀴즈 나가기")
-            .setMessage("나가면 현재 문제의 공부 시간은 기록됩니다. 나갈까요?")
+            .setMessage("지금 나가셔도 현재까지의 문제는 저장됩니다.\n 나갈까요?")
             .setNegativeButton("취소") { d, _ -> d.dismiss() }
             .setPositiveButton("나가기") { d, _ ->
                 d.dismiss()
@@ -412,7 +462,6 @@ class QuizActivity : AppCompatActivity() {
                 val currentProblem = actualProblems.getOrNull(current - 1)
 
                 if (!answered && durationSeconds > 0 && currentProblem != null) {
-                    Toast.makeText(this, "학습 기록 저장 중...", Toast.LENGTH_SHORT).show()
                     problemViewModel.submitAnswer(
                         problemId = currentProblem.problemId,
                         userId = currentUserId,
@@ -433,20 +482,35 @@ class QuizActivity : AppCompatActivity() {
     }
 
     private fun showCompletion() {
-        // 🔥 [추가] 퀴즈 완주 보상 지급 (50포인트)
         problemViewModel.rewardPoints(currentUserId, 50)
-        Toast.makeText(this, "퀴즈 완주! 50포인트 획득!", Toast.LENGTH_LONG).show()
 
-        MaterialAlertDialogBuilder(this)
-            .setTitle("완료")
-            .setMessage("모든 문제를 풀었습니다!\n총 ${solvedCount}문제 정답!")
-            .setPositiveButton("확인") { d, _ ->
-                d.dismiss()
-                skipAutoSave = true
-                ProgressStore.saveSync(this, courseId, currentIndex = total, solvedCount = solvedCount)
-                finish()
-            }
-            .show()
+        // 1. 커스텀 레이아웃 inflate (만들어둔 xml 불러오기)
+        val dialogView = android.view.LayoutInflater.from(this).inflate(R.layout.dialog_quiz_completion, null)
+
+        // 2. 레이아웃 내부 뷰 찾기
+        val btnConfirm = dialogView.findViewById<MaterialButton>(R.id.btnDialogConfirm)
+        // 필요하다면 텍스트뷰도 찾아서 문구 변경 가능
+        // val tvMessage = dialogView.findViewById<TextView>(R.id.tvDialogMessage)
+        // tvMessage.text = "50 포인트 획득!"
+
+        // 3. 다이얼로그 생성 (setView 사용)
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setView(dialogView)
+            .setCancelable(false) // 배경 터치시 닫히지 않게 설정
+            .create()
+
+        // 4. 버튼 클릭 리스너 설정 (기존 setPositiveButton 로직 이동)
+        btnConfirm.setOnClickListener {
+            dialog.dismiss()
+            skipAutoSave = true
+            ProgressStore.saveSync(this, courseId, currentIndex = total, solvedCount = solvedCount)
+            finish()
+        }
+
+        // 5. 다이얼로그 배경 투명 처리 (XML의 라운드 처리를 살리기 위해 필수)
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+
+        dialog.show()
     }
 
     private fun updateHintButtonState(count: Int) {

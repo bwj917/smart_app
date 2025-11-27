@@ -11,6 +11,8 @@
         android:theme="@style/Theme.MyQuizApp"
         android:usesCleartextTraffic="true"
         android:enableOnBackInvokedCallback="true"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         tools:targetApi="31">
 
         <!-- 🔥 앱 최초 실행 시 보여줄 화면 = LoginActivity -->
@@ -41,16 +43,15 @@
             android:exported="false" />
         <!-- 이번 달 학습량 화면 -->
         <activity
-            android:name=".ui.stats.StatsFragment"
-            android:exported="false" />
-        <activity
-            android:name=".ui.wrongnote.WrongNoteActivity"
-            android:exported="false" />
-        <activity
-            android:name="com.example.myapplication.ui.wrongnote.WrongNoteDetailActivity"
-            android:exported="false" />
-        <activity
             android:name=".ui.course.CourseSelectActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.wrongnote.FrequentWrongActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.wrongnote.MyNoteActivity"
             android:exported="false" />
     </application>
 
